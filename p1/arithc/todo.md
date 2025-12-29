@@ -1,0 +1,17 @@
+# TODO
+- expressions
+    - print
+    - immediates
+    - math operations
+    - local variables
+- types
+- type checking
+- functions
+- local variables
+- for loops
+- arrays
+- resizeable vectors
+- compiling error messages
+- type checking error messages
+- pointers?????
+- report
