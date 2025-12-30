@@ -10,8 +10,8 @@
 %token <float> FCST
 %token <float> DCST
 %token <string> IDENT
+%token <Ast.ty> TYPE
 %token PRINT
-%token INT, LONG, FLOAT, DOUBLE
 %token END_INST
 %token EOF
 %token LP RP
@@ -43,7 +43,7 @@ stmts:
 ;
 
 stmt:
-| SET id = IDENT EQ e = expr END_INST { Set (id, e) }
+| TYPE id = IDENT EQ e = expr END_INST { Set ($1, id, e) }
 | PRINT e = expr END_INST             { Print e }
 ;
 

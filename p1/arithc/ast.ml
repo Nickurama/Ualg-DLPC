@@ -1,10 +1,10 @@
 
-(* Sintaxe abstracta para a linguagem Arith *)
+(* Abstract syntax tree *)
 
 type program = stmt list
 
 and stmt =
-    | Set of string * expr
+    | Set of ty * string * expr
     | Print of expr
 
 and expr =

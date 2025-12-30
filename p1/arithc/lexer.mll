@@ -1,21 +1,16 @@
-
-(* Analisador léxico para Arith *)
-
 {
     open Lexing
     open Parser
+    open Ast
 
     exception Lexing_error of char
 
     let kwd_tbl = [
-        (* "let",LET; *)
-        (* "in",IN; *)
-        (* "set",SET; *)
-        "print",PRINT;
-        "int",INT;
-        "long",LONG;
-        "float",FLOAT;
-        "double",DOUBLE
+        "print", PRINT;
+        "int", TYPE TInt;
+        "long", TYPE TLong;
+        "float", TYPE TFloat;
+        "double", TYPE TDouble
     ]
     let id_or_kwd s = try List.assoc s kwd_tbl with _ -> IDENT s
 }
