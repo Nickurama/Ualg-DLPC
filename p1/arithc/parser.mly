@@ -1,29 +1,34 @@
 
-/* Analidsador sintático para Arith */
+/* Parser */
 
 %{
   open Ast
 %}
 
-%token <int> CST
+%token <int32> ICST
+%token <int64> LCST
+%token <float> FCST
+%token <float> DCST
 %token <string> IDENT
-%token SET, LET, IN, PRINT
+%token PRINT
+%token INT, LONG, FLOAT, DOUBLE
+%token END_INST
 %token EOF
 %token LP RP
 %token PLUS MINUS TIMES DIV
 %token EQ
 
-/* Definição das prioridades e das associatividades dos tokens */
+/* Definition of priority and associativity of tokens */
 
-%nonassoc IN
+(* %nonassoc IN *)
 %left PLUS MINUS
 %left TIMES DIV
 %nonassoc uminus
 
-/* Entry point para a gramática */
+/* Entry point for grammar */
 %start prog
 
-/* Tipo dos valores devolvidos pelo analisador sintático */
+/* Type of the values returned by the parser */
 %type <Ast.program> prog
 
 %%
@@ -38,18 +43,20 @@ stmts:
 ;
 
 stmt:
-| SET id = IDENT EQ e = expr { Set (id, e) }
-| PRINT e = expr             { Print e }
+| SET id = IDENT EQ e = expr END_INST { Set (id, e) }
+| PRINT e = expr END_INST             { Print e }
 ;
 
 expr:
-| c = CST                        { Cst c }
-| id = IDENT                     { Var id }
-| e1 = expr o = op e2 = expr     { Binop (o, e1, e2) }
-| MINUS e = expr %prec uminus    { Binop (Sub, Cst 0, e) }
-| LET id = IDENT EQ e1 = expr IN e2 = expr
-                                 { Letin (id, e1, e2) }
+| c = ICST                        { ICst c }
+| c = LCST                        { LCst c }
+| c = FCST                        { FCst c }
+| c = DCST                        { DCst c }
+| id = IDENT                     { Var (NoType id) }
+| e1 = expr o = op e2 = expr     { Binop (o, NoType, e1, NoType, e2) }
+| MINUS e = expr %prec uminus    { Binop (Sub, TInt, ICst 0, NoType, e) }
 | LP e = expr RP                 { e }
+(* | LET id = IDENT EQ e1 = expr IN e2 = expr { Letin (id, e1, e2) } *)
 ;
 
 %inline op:

@@ -12,7 +12,10 @@ exception VarUndef of string
 let frame_size = ref 0
 
 (* As variáveis globais são arquivadas numa hash table (uma tabela de símbolos globais) *)
-let (genv : (string, int) Hashtbl.t) = Hashtbl.create 17
+let (global_vars : (string, unit) Hashtbl.t) = Hashtbl.create 17
+
+(* hashtable with number of variables for a given function *)
+let (func_var_num : (string, int) Hashtbl.t) = Hashtbl.create 17
 
 (* Usamos uma tabela associativa cujas chaves são variáveis locais, i.e. uma tabela de
    símbolos locais cujas chaves são strings e os valores são a posição desta variável
@@ -29,8 +32,9 @@ let compile_expr =
         movq (imm i) !%rax ++
         pushq !%rax
     | Var x ->
-        let first_offset = 8 * (Hashtbl.length genv - 1) in
-        let bottom_offset = 8 * (Hashtbl.find genv x) in
+        let first_offset = 8 * (Hashtbl.length global_vars - 1) in
+        (* let bottom_offset = 8 * (Hashtbl.find global_vars x) in *)
+        let bottom_offset = 8 in
         let var_offset = first_offset - bottom_offset in
         movq (ind ~ofs:var_offset rsp) !%rax ++
         pushq !%rax
@@ -54,29 +58,34 @@ let compile_expr =
 
         ++ pushq !%rax
     )
-    | Letin (x, e1, e2) ->
-        if !frame_size = next then frame_size := 8 + !frame_size;
-        nop (* TODO *)
+    (* | Letin (x, e1, e2) -> *)
+    (*     if !frame_size = next then frame_size := 8 + !frame_size; *)
+    (*     nop (* TODO *) *)
   in
   comprec StrMap.empty 0
 
 (* Compilação de uma instrução *)
 let compile_instr = function
   | Set (x, e) ->
-      if Hashtbl.mem genv x then
-          Hashtbl.replace genv x (Hashtbl.find genv x)
-      else
-          Hashtbl.add genv x (Hashtbl.length genv);
       compile_expr e
-      (* popq rdi *)
   | Print e ->
       compile_expr e ++
       popq rdi ++
       call "print_int"
 
+(* Compilação de uma instrução *)
+let get_number_vars = function
+  | Set (x, e) ->
+      if Hashtbl.mem global_vars x then
+          ()
+      else
+          Hashtbl.add global_vars x ()
+  | Print e -> ()
+
 
 (* Compila o programa p e grava o código no ficheiro ofile *)
 let compile_program p ofile =
+  List.iter get_number_vars p;
   let code = List.map compile_instr p in
   let code = List.fold_right (++) code nop in
   if !frame_size mod 16 = 8 then frame_size := 8 + !frame_size;
@@ -92,7 +101,7 @@ let compile_program p ofile =
         code ++
 
         (* remove global variables *)
-        Hashtbl.fold (fun _ _ acc -> acc ++ popq rax) genv nop ++
+        Hashtbl.fold (fun _ _ acc -> acc ++ popq rax) global_vars nop ++
 
         (* ending sequence *)
         popq rbp ++
@@ -109,7 +118,7 @@ let compile_program p ofile =
         popq rbp ++
         ret;
       data =
-        Hashtbl.fold (fun x _ l -> label x ++ dquad [1] ++ l) genv
+        Hashtbl.fold (fun x _ l -> label x ++ dquad [1] ++ l) global_vars
           (label ".Sprint_int" ++ string "%d\n")
     }
   in

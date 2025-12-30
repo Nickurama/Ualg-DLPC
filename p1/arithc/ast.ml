@@ -4,14 +4,28 @@
 type program = stmt list
 
 and stmt =
-  | Set of string * expr
-  | Print of expr
+    | Set of string * expr
+    | Print of expr
 
 and expr =
-  | Cst of int
-  | Var of string
-  | Binop of binop * expr * expr
-  | Letin of string * expr * expr
+    | ICst of int32
+    | LCst of int64
+    | FCst of float
+    | DCst of float
+    | Var of ty * string
+    | Binop of binop * ty * expr * ty * expr
 
-and binop = Add | Sub | Mul | Div
+and ty =
+    | NoType (* placeholder *)
+    | TInt
+    | TLong
+    | TFloat
+    | TDouble
+    | TBool
 
+
+and binop =
+    | Add
+    | Sub
+    | Mul
+    | Div

@@ -12,7 +12,7 @@ exception VarUndef of string
 let frame_size = ref 0
 
 (* As variáveis globais são arquivadas numa hash table (uma tabela de símbolos globais) *)
-let (global_vars : (string, int) Hashtbl.t) = Hashtbl.create 17
+let (global_vars : (string, unit) Hashtbl.t) = Hashtbl.create 17
 
 (* hashtable with number of variables for a given function *)
 let (func_var_num : (string, int) Hashtbl.t) = Hashtbl.create 17
@@ -33,7 +33,8 @@ let compile_expr =
         pushq !%rax
     | Var x ->
         let first_offset = 8 * (Hashtbl.length global_vars - 1) in
-        let bottom_offset = 8 * (Hashtbl.find global_vars x) in
+        (* let bottom_offset = 8 * (Hashtbl.find global_vars x) in *)
+        let bottom_offset = 8 in
         let var_offset = first_offset - bottom_offset in
         movq (ind ~ofs:var_offset rsp) !%rax ++
         pushq !%rax
@@ -57,9 +58,9 @@ let compile_expr =
 
         ++ pushq !%rax
     )
-    | Letin (x, e1, e2) ->
-        if !frame_size = next then frame_size := 8 + !frame_size;
-        nop (* TODO *)
+    (* | Letin (x, e1, e2) -> *)
+    (*     if !frame_size = next then frame_size := 8 + !frame_size; *)
+    (*     nop (* TODO *) *)
   in
   comprec StrMap.empty 0
 
@@ -76,14 +77,15 @@ let compile_instr = function
 let get_number_vars = function
   | Set (x, e) ->
       if Hashtbl.mem global_vars x then
-          Hashtbl.replace global_vars x (Hashtbl.find global_vars x)
+          ()
       else
-          Hashtbl.add global_vars x (Hashtbl.length global_vars)
+          Hashtbl.add global_vars x ()
   | Print e -> ()
 
 
 (* Compila o programa p e grava o código no ficheiro ofile *)
 let compile_program p ofile =
+  List.iter get_number_vars p;
   let code = List.map compile_instr p in
   let code = List.fold_right (++) code nop in
   if !frame_size mod 16 = 8 then frame_size := 8 + !frame_size;

@@ -47,8 +47,8 @@ expr:
 | id = IDENT                     { Var id }
 | e1 = expr o = op e2 = expr     { Binop (o, e1, e2) }
 | MINUS e = expr %prec uminus    { Binop (Sub, Cst 0, e) }
-| LET id = IDENT EQ e1 = expr IN e2 = expr
-                                 { Letin (id, e1, e2) }
+(* | LET id = IDENT EQ e1 = expr IN e2 = expr *)
+(*                                  { Letin (id, e1, e2) } *)
 | LP e = expr RP                 { e }
 ;
 
