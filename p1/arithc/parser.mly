@@ -52,9 +52,9 @@ expr:
 | c = LCST                        { LCst c }
 | c = FCST                        { FCst c }
 | c = DCST                        { DCst c }
-| id = IDENT                     { Var (NoType id) }
+| id = IDENT                     { Var (NoType, id) }
 | e1 = expr o = op e2 = expr     { Binop (o, NoType, e1, NoType, e2) }
-| MINUS e = expr %prec uminus    { Binop (Sub, TInt, ICst 0, NoType, e) }
+| MINUS e = expr %prec uminus    { Binop (Sub, TInt, ICst 0l, NoType, e) }
 | LP e = expr RP                 { e }
 (* | LET id = IDENT EQ e1 = expr IN e2 = expr { Letin (id, e1, e2) } *)
 ;

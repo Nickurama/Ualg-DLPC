@@ -1,27 +1,31 @@
 
-(* Sintaxe abstracta para a linguagem Arith *)
+(* Abstract syntax tree *)
 
-type ty =
+type program = stmt list
+
+and stmt =
+    | Set of ty * string * expr
+    | Print of expr
+
+and expr =
+    | ICst of int32
+    | LCst of int64
+    | FCst of float
+    | DCst of float
+    | Var of ty * string
+    | Binop of binop * ty * expr * ty * expr
+
+and ty =
+    | NoType (* placeholder *)
     | TInt
     | TLong
     | TFloat
     | TDouble
     | TBool
 
-type program = stmt list
-
-and stmt =
-    | Set of string * expr
-    | Print of expr
-
-and expr =
-    | Cst of int
-    | Var of string
-    | Binop of binop * expr * expr
 
 and binop =
     | Add
     | Sub
     | Mul
     | Div
-

@@ -2,20 +2,22 @@
 (* The type of tokens. *)
 
 type token = 
+  | TYPE of (Ast.ty)
   | TIMES
-  | SET
   | RP
   | PRINT
   | PLUS
   | MINUS
   | LP
-  | LET
-  | IN
+  | LCST of (int64)
   | IDENT of (string)
+  | ICST of (int32)
+  | FCST of (float)
   | EQ
   | EOF
+  | END_INST
   | DIV
-  | CST of (int)
+  | DCST of (float)
 
 (* This exception is raised by the monolithic API functions. *)
 

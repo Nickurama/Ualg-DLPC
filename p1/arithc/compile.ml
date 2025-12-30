@@ -28,17 +28,28 @@ let compile_expr =
    da árvore de sintaxe abstracta associada ao valor de tipo Ast.expr.
    No fim da execução deste código, o valor *deve* estar no topo da pilha *)
   let rec comprec env next = function
-    | Cst i ->
-        movq (imm i) !%rax ++
+    | ICst i ->
+        movq (imm32 i) !%rax ++
         pushq !%rax
-    | Var x ->
+    | LCst i ->
+        movq (imm64 i) !%rax ++
+        pushq !%rax
+    | FCst i ->
+        (* movq (imm i) !%rax ++ *)
+        (* pushq !%rax *)
+        nop
+    | DCst i ->
+        (* movq (imm i) !%rax ++ *)
+        (* pushq !%rax *)
+        nop
+    | Var (t, x) ->
         let first_offset = 8 * (Hashtbl.length global_vars - 1) in
         (* let bottom_offset = 8 * (Hashtbl.find global_vars x) in *)
         let bottom_offset = 8 in
         let var_offset = first_offset - bottom_offset in
         movq (ind ~ofs:var_offset rsp) !%rax ++
         pushq !%rax
-    | Binop (o, e1, e2) -> (
+    | Binop (o, t1, e1, t2, e2) -> (
         comprec env next e1 ++
         comprec env next e2 ++
         popq rax ++
@@ -66,7 +77,7 @@ let compile_expr =
 
 (* Compilação de uma instrução *)
 let compile_instr = function
-  | Set (x, e) ->
+  | Set (t, x, e) ->
       compile_expr e
   | Print e ->
       compile_expr e ++
@@ -75,7 +86,7 @@ let compile_instr = function
 
 (* Compilação de uma instrução *)
 let get_number_vars = function
-  | Set (x, e) ->
+  | Set (t, x, e) ->
       if Hashtbl.mem global_vars x then
           ()
       else

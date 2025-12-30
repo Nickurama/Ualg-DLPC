@@ -34,9 +34,17 @@ rule token = parse
   | '('     { LP }
   | ')'     { RP }
   | ';'     { END_INST }
-  | integer as s { ICST (int_of_string s) }
-  | integer 'l' as s {LCST (Int64.of_string s)}
-  | integer '.' integer as s { FCST (float_of_string f) }
-  | integer '.' integer 'd' as s { DCST (float_of_string f) }
+  | integer as s { ICST (Int32.of_string s) }
+  | integer 'l' as s {
+      let len = String.length s in
+      let s_cropped = String.sub s 0 (len - 1) in
+      LCST (Int64.of_string s_cropped)
+  }
+  | integer '.' integer as s { FCST (float_of_string s) }
+  | integer '.' integer 'd' as s { 
+      let len = String.length s in
+      let s_cropped = String.sub s 0 (len - 1) in
+      DCST (float_of_string s_cropped)
+  }
   | eof     { EOF }
   | _ as c  { raise (Lexing_error c) }

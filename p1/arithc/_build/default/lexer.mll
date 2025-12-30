@@ -1,15 +1,18 @@
-
-(* Analisador léxico para Arith *)
-
 {
-  open Lexing
-  open Parser
+    open Lexing
+    open Parser
+    open Ast
 
-  exception Lexing_error of char
+    exception Lexing_error of char
 
-  let kwd_tbl = ["let",LET; "in",IN; "set",SET; "print",PRINT]
-  let id_or_kwd s = try List.assoc s kwd_tbl with _ -> IDENT s
-
+    let kwd_tbl = [
+        "print", PRINT;
+        "int", TYPE TInt;
+        "long", TYPE TLong;
+        "float", TYPE TFloat;
+        "double", TYPE TDouble
+    ]
+    let id_or_kwd s = try List.assoc s kwd_tbl with _ -> IDENT s
 }
 
 let letter = ['a'-'z' 'A'-'Z']
@@ -30,8 +33,18 @@ rule token = parse
   | '='     { EQ }
   | '('     { LP }
   | ')'     { RP }
-  | integer as s { CST (int_of_string s) }
+  | ';'     { END_INST }
+  | integer as s { ICST (Int32.of_string s) }
+  | integer 'l' as s {
+      let len = String.length s in
+      let s_cropped = String.sub s 0 (len - 1) in
+      LCST (Int64.of_string s_cropped)
+  }
+  | integer '.' integer as s { FCST (float_of_string s) }
+  | integer '.' integer 'd' as s { 
+      let len = String.length s in
+      let s_cropped = String.sub s 0 (len - 1) in
+      DCST (float_of_string s_cropped)
+  }
   | eof     { EOF }
   | _ as c  { raise (Lexing_error c) }
-
-

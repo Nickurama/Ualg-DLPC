@@ -1,18 +1,20 @@
 type token =
-    TIMES
-  | SET
+    TYPE of Ast.ty
+  | TIMES
   | RP
   | PRINT
   | PLUS
   | MINUS
   | LP
-  | LET
-  | IN
+  | LCST of int64
   | IDENT of string
+  | ICST of int32
+  | FCST of float
   | EQ
   | EOF
+  | END_INST
   | DIV
-  | CST of int
+  | DCST of float
 val menhir_begin_marker : int
 val xv_stmts : Ast.stmt list
 val xv_stmt : Ast.stmt
