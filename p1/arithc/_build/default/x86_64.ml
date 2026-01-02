@@ -127,10 +127,18 @@ let ins x =
     S s
   ) fmt x
 
+let pr_list_int32 fmt pr = function
+  | []      -> ()
+  | [(i: int32)]     -> pr fmt i
+  | (i: int32) :: (ll: int32 list) -> pr fmt i; List.iter (fun i -> fprintf fmt ", %a" pr i) ll
+
 let pr_list fmt pr = function
   | []      -> ()
   | [i]     -> pr fmt i
   | i :: ll -> pr fmt i; List.iter (fun i -> fprintf fmt ", %a" pr i) ll
+
+let pr_int32list fmt l =
+  pr_list fmt (fun fmt i -> fprintf fmt "%ld" i) l 
 
 let pr_ilist fmt l =
   pr_list fmt (fun fmt i -> fprintf fmt "%i" i) l
@@ -284,16 +292,19 @@ let comment s = S ("#" ^ s ^ "\n")
 let align n = ins ".align %i" n
 
 let dbyte l = ins ".byte %a" pr_ilist l
-let dint  l = ins ".int %a" pr_ilist l
 let dword l = ins ".word %a" pr_ilist l
+let dint  l = ins ".int %a" pr_int32list l
 let dquad l = ins ".quad %a" pr_ilist l
 let string s = ins ".string %S" s
+let dfloat f = ins ".float %f" f
+let ddouble d = ins ".double %lf" d
 
 let address l = ins ".quad %a" pr_alist l
 let space n = ins ".space %d" n
 
 let pushq a = ins "pushq %a" a ()
 let popq r = ins "popq %s" r
+
 
 type program = {
   text : [ `text ] asm;

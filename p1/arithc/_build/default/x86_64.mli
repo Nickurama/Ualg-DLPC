@@ -339,7 +339,7 @@ val string : string -> data
   (** a string constant, ended by 0 *)
 val dbyte : int list -> data
 val dword : int list -> data
-val dint : int list -> data
+val dint : int32 list -> data
 val dquad : int list -> data
   (** places a list of values using 1/2/4/8 bytes in the data section *)
 val address: label list -> data

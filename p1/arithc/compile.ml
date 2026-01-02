@@ -93,10 +93,33 @@ let get_number_vars = function
           Hashtbl.add global_vars x ()
   | Print e -> ()
 
+let rec get_constants_from_expr = function
+    | ICst i ->
+        (* label dint [i] *)
+        dint [i]
+    | LCst i ->
+        nop
+    | FCst i ->
+        nop
+    | DCst i ->
+        nop
+    | Var (t, x) -> nop
+    | Binop (o, t1, e1, t2, e2) -> (
+        get_constants_from_expr e1 ++
+        get_constants_from_expr e2
+    )
+
+
+let get_constants = function
+  | Set (t, x, e) -> get_constants_from_expr e
+  | Print e -> get_constants_from_expr e
+
 
 (* Compila o programa p e grava o código no ficheiro ofile *)
 let compile_program p ofile =
   List.iter get_number_vars p;
+  let constants = List.map get_constants p in
+  let constants = List.fold_right (++) constants nop in
   let code = List.map compile_instr p in
   let code = List.fold_right (++) code nop in
   if !frame_size mod 16 = 8 then frame_size := 8 + !frame_size;
