@@ -103,6 +103,8 @@ let rellab (l: label) = fun fmt () -> fprintf fmt "%a(%%rip)" mangle l
 let lab = abslab
 let ilab (l: label) = fun fmt () -> fprintf fmt "$%a" mangle l
 
+let label_ref (l: label) (offset: int64) = fun fmt () -> fprintf fmt "%a+%Ld(%%rip)" mangle l offset
+
 type 'a asm =
   | Nop
   | S of string
@@ -127,11 +129,6 @@ let ins x =
     S s
   ) fmt x
 
-let pr_list_int32 fmt pr = function
-  | []      -> ()
-  | [(i: int32)]     -> pr fmt i
-  | (i: int32) :: (ll: int32 list) -> pr fmt i; List.iter (fun i -> fprintf fmt ", %a" pr i) ll
-
 let pr_list fmt pr = function
   | []      -> ()
   | [i]     -> pr fmt i
@@ -139,6 +136,15 @@ let pr_list fmt pr = function
 
 let pr_int32list fmt l =
   pr_list fmt (fun fmt i -> fprintf fmt "%ld" i) l 
+
+let pr_int64list fmt l =
+  pr_list fmt (fun fmt i -> fprintf fmt "%Ld" i) l 
+
+let pr_float32list fmt l =
+  pr_list fmt (fun fmt i -> fprintf fmt "%f" i) l 
+
+let pr_float64list fmt l =
+  pr_list fmt (fun fmt i -> fprintf fmt "%f" i) l 
 
 let pr_ilist fmt l =
   pr_list fmt (fun fmt i -> fprintf fmt "%i" i) l
@@ -294,10 +300,10 @@ let align n = ins ".align %i" n
 let dbyte l = ins ".byte %a" pr_ilist l
 let dword l = ins ".word %a" pr_ilist l
 let dint  l = ins ".int %a" pr_int32list l
-let dquad l = ins ".quad %a" pr_ilist l
+let dquad l = ins ".quad %a" pr_int64list l
 let string s = ins ".string %S" s
-let dfloat f = ins ".float %f" f
-let ddouble d = ins ".double %lf" d
+let dfloat f = ins ".float %a" pr_float32list f
+let ddouble d = ins ".double %a" pr_float64list d
 
 let address l = ins ".quad %a" pr_alist l
 let space n = ins ".space %d" n

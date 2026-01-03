@@ -1,7 +1,5 @@
 
-print 1 + 2;
-
-# print 1 + 100l;
+print 1 + 100l;
 
 # print (let x = 10 in x) + (let x = 20 in let y = 30 in x+y)
 # print 100 / 2

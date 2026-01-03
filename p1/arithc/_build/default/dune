@@ -5,5 +5,5 @@
 (executable
  (name arithc)
  (promote (until-clean))
- (modules dyn_list ast lexer parser x86_64 compile arithc)
+ (modules ast lexer parser x86_64 compile arithc)
  (flags ()))

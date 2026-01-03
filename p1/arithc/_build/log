@@ -3,7 +3,7 @@
 # Shared cache: enabled-except-user-rules
 # Shared cache location: /home/luna/.cache/dune/db
 # Workspace root: /home/luna/Documents/uni_code/dlpc/p1/arithc
-# Auto-detected concurrency: 16
+# Auto-detected concurrency: 8
 # Dune context:
 #  { name = "default"
 #  ; kind = "default"
@@ -13,4 +13,4 @@
 #  ; build_dir = In_build_dir "default"
 #  ; instrument_with = []
 #  }
-$ /home/luna/.opam/default/bin/ocamlc.opt -config > /tmp/dune_bdbba6_output
+$ /home/luna/.opam/default/bin/ocamlc.opt -config > /tmp/dune_3718b0_output

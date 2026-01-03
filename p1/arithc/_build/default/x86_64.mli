@@ -148,6 +148,8 @@ val lab: label -> [>] operand
 val ilab: label -> [`Q] operand
   (** immediat label $L *)
 
+val label_ref: label -> int64 -> [>] operand
+
 (** {1 Instructions } *)
 
 (** {2 Transfert } *)
@@ -340,7 +342,9 @@ val string : string -> data
 val dbyte : int list -> data
 val dword : int list -> data
 val dint : int32 list -> data
-val dquad : int list -> data
+val dquad : int64 list -> data
+val dfloat : float list -> data
+val ddouble : float list -> data
   (** places a list of values using 1/2/4/8 bytes in the data section *)
 val address: label list -> data
   (** places a list of addresses in the data section (with .quad) *)

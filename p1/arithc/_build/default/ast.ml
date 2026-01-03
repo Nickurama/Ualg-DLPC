@@ -21,7 +21,6 @@ and ty =
     | TLong
     | TFloat
     | TDouble
-    | TBool
 
 
 and binop =
