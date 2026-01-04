@@ -214,7 +214,7 @@ and (xv_stmts, xv_stmt, xv_prog, xv_op, xv_expr) =
    : unit) (_startpos__1_ : Lexing.position) (_endpos__1_ : Lexing.position) (_startofs__1_ : int) (_endofs__1_ : int) (_loc__1_ : Lexing.position * Lexing.position) : 'tv_expr ->
     
 # 57 "parser.mly"
-                                 ( Binop (Sub, TInt, ICst 0l, NoType, e) )
+                                 ( Binop (NoType, Sub, NoType, ICst 0l, NoType, e) )
 # 219 "parser__mock.ml.mock"
      in
   let _ = fun (_startpos : Lexing.position) (_endpos : Lexing.position) (_endpos__0_ : Lexing.position) (_symbolstartpos : Lexing.position) (_startofs : int) (_endofs : int) (_endofs__0_ : int) (_symbolstartofs : int) (_sloc : Lexing.position * Lexing.position) (_loc : Lexing.position * Lexing.position) (
@@ -232,7 +232,7 @@ and (xv_stmts, xv_stmt, xv_prog, xv_op, xv_expr) =
    : 'tv_expr) (_startpos_e1_ : Lexing.position) (_endpos_e1_ : Lexing.position) (_startofs_e1_ : int) (_endofs_e1_ : int) (_loc_e1_ : Lexing.position * Lexing.position) : 'tv_expr ->
     
 # 56 "parser.mly"
-                                 ( Binop (o, NoType, e1, NoType, e2) )
+                                 ( Binop (NoType, o, NoType, e1, NoType, e2) )
 # 237 "parser__mock.ml.mock"
      in
   let _ = fun (_startpos : Lexing.position) (_endpos : Lexing.position) (_endpos__0_ : Lexing.position) (_symbolstartpos : Lexing.position) (_startofs : int) (_endofs : int) (_endofs__0_ : int) (_symbolstartofs : int) (_sloc : Lexing.position * Lexing.position) (_loc : Lexing.position * Lexing.position) (

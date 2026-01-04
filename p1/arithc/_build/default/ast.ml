@@ -13,7 +13,7 @@ and expr =
     | FCst of float
     | DCst of float
     | Var of ty * string
-    | Binop of binop * ty * expr * ty * expr
+    | Binop of ty * binop * ty * expr * ty * expr
 
 and ty =
     | NoType (* placeholder *)

@@ -1,5 +1,6 @@
 
 print 1 + 2;
+print 1l + 2l;
 
 # print 1 + 100l;
 

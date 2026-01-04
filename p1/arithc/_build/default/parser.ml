@@ -192,7 +192,7 @@ let _menhir_action_06 =
      in
     (
 # 56 "parser.mly"
-                                 ( Binop (o, NoType, e1, NoType, e2) )
+                                 ( Binop (NoType, o, NoType, e1, NoType, e2) )
 # 197 "parser.ml"
      : (Ast.expr))
 
@@ -205,7 +205,7 @@ let _menhir_action_07 =
      in
     (
 # 56 "parser.mly"
-                                 ( Binop (o, NoType, e1, NoType, e2) )
+                                 ( Binop (NoType, o, NoType, e1, NoType, e2) )
 # 210 "parser.ml"
      : (Ast.expr))
 
@@ -218,7 +218,7 @@ let _menhir_action_08 =
      in
     (
 # 56 "parser.mly"
-                                 ( Binop (o, NoType, e1, NoType, e2) )
+                                 ( Binop (NoType, o, NoType, e1, NoType, e2) )
 # 223 "parser.ml"
      : (Ast.expr))
 
@@ -231,7 +231,7 @@ let _menhir_action_09 =
      in
     (
 # 56 "parser.mly"
-                                 ( Binop (o, NoType, e1, NoType, e2) )
+                                 ( Binop (NoType, o, NoType, e1, NoType, e2) )
 # 236 "parser.ml"
      : (Ast.expr))
 
@@ -239,7 +239,7 @@ let _menhir_action_10 =
   fun e ->
     (
 # 57 "parser.mly"
-                                 ( Binop (Sub, TInt, ICst 0l, NoType, e) )
+                                 ( Binop (NoType, Sub, NoType, ICst 0l, NoType, e) )
 # 244 "parser.ml"
      : (Ast.expr))
 

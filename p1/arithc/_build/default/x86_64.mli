@@ -45,7 +45,7 @@ val print_in_file: file:string -> program -> unit
 
 (** {1 Registers } *)
 
-type size = [`B | `W | `L | `Q]
+type size = [`B | `W | `L | `Q | `O]
 
 type 'size register
   (** abstract type for registers *)
@@ -57,7 +57,7 @@ val rdx: [`Q] register
 val rsi: [`Q] register
 val rdi: [`Q] register
 val rbp: [`Q] register
-val rsp: [`Q] register
+val rsp: [>] register
 val r8 : [`Q] register
 val r9 : [`Q] register
 val r10: [`Q] register
@@ -126,6 +126,16 @@ val r14b: [`B] register
 val r15b: [`B] register
   (** 8 bits registers *)
 
+val xmm0: [`O] register
+val xmm1: [`O] register
+val xmm2: [`O] register
+val xmm3: [`O] register
+val xmm4: [`O] register
+val xmm5: [`O] register
+val xmm6: [`O] register
+val xmm7: [`O] register
+  (** 128 bits registers *)
+
 (** {1 Operands } *)
 
 type 'size operand
@@ -173,6 +183,8 @@ val movzwl: [`W] operand -> [`L] register -> text
 val movzwq: [`W] operand -> [`Q] register -> text
   (** 8->64 bits, with zero extension *)
 
+val movsd: [`O] operand -> [>] operand -> text
+
 val movabsq: [`Q] operand -> [`Q] register -> text
   (** copy one 64 bits immediate value to a register *)
 
@@ -202,18 +214,22 @@ val addb: [`B] operand -> [`B] operand -> text
 val addw: [`W] operand -> [`W] operand -> text
 val addl: [`L] operand -> [`L] operand -> text
 val addq: [`Q] operand -> [`Q] operand -> text
+val addsd: [`O] operand -> [`O] operand -> text
 
 val subb: [`B] operand -> [`B] operand -> text
 val subw: [`W] operand -> [`W] operand -> text
 val subl: [`L] operand -> [`L] operand -> text
 val subq: [`Q] operand -> [`Q] operand -> text
+val subsd: [`O] operand -> [`O] operand -> text
 
 val imulw: [`W] operand -> [`W] operand -> text
 val imull: [`L] operand -> [`L] operand -> text
 val imulq: [`Q] operand -> [`Q] operand -> text
+val mulsd: [`O] operand -> [`O] operand -> text
 
 val idivq: [`Q] operand -> text
 val cqto: text
+val divsd: [`O] operand -> [`O] operand -> text
 
 (** {2 Logical operations } *)
 
@@ -321,6 +337,12 @@ val pushq : [`Q] operand -> text
 
 val popq : [`Q] register -> text
   (** [popq r] places the word at the top of the stack into [r] and pops. *)
+
+val cvtsi2sdq: [`Q] operand -> [`O] operand -> text
+    (** converts long to double *)
+
+val cvttsd2si: [`O] operand -> [`Q] operand -> text
+    (** converts double to long (truncates) *)
 
 (** {2 Miscellaneous} *)
 
