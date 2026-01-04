@@ -181,7 +181,8 @@ let movzbq a b = ins "movzbq %a, %s" a () b
 let movzwl a b = ins "movzwl %a, %s" a () b
 let movzwq a b = ins "movzwq %a, %s" a () b
 
-let movsd a b = ins "movsd %a, %s" a () b
+let movsd a b = ins "movsd %a, %a" a () b ()
+let movss a b = ins "movss %a, %a" a () b ()
 
 let leab op r = ins "leab %a, %s" op () r
 let leaw op r = ins "leaw %a, %s" op () r
@@ -208,6 +209,10 @@ let addw a b = ins "addw %a, %a" a () b ()
 let addl a b = ins "addl %a, %a" a () b ()
 let addq a b = ins "addq %a, %a" a () b ()
 let addsd a b = ins "addsd %a, %a" a () b ()
+let addss a b = ins "addss %a, %a" a () b ()
+let subss a b = ins "subss %a, %a" a () b ()
+let mulss a b = ins "mulss %a, %a" a () b ()
+let divss a b = ins "divss %a, %a" a () b ()
 
 let subb a b = ins "subb %a, %a" a () b ()
 let subw a b = ins "subw %a, %a" a () b ()
@@ -221,7 +226,9 @@ let imulq a b = ins "imulq %a, %a" a () b ()
 let mulsd a b = ins "mulsd %a, %a" a () b ()
 
 let idivq a = ins "idivq %a" a ()
+let idivl a = ins "idivl %a" a ()
 let cqto = S "\tcqto\n"
+let cltd = S "\tcltd\n"
 let divsd a b = ins "divsd %a, %a" a () b ()
 
 let notb a = ins "notb %a" a ()
@@ -326,8 +333,16 @@ let space n = ins ".space %d" n
 let pushq a = ins "pushq %a" a ()
 let popq r = ins "popq %s" r
 
-let cvtsi2sdq a b = ins "cvtsi2sdq %a, %a" a () b ()
+let cvttss2si a b = ins "cvttss2si %a, %a" a () b ()
+let cvttss2siq a b = ins "cvttss2siq %a, %a" a () b ()
 let cvttsd2si a b = ins "cvttsd2si %a, %a" a () b ()
+let cvttsd2siq a b = ins "cvttsd2siq %a, %a" a () b ()
+let cvtsi2ssl a b = ins "cvtsi2ssl %a, %a" a () b ()
+let cvtsi2sdl a b = ins "cvtsi2sdl %a, %a" a () b ()
+let cvtsi2ssq a b = ins "cvtsi2ssq %a, %a" a () b ()
+let cvtsi2sdq a b = ins "cvtsi2sdq %a, %a" a () b ()
+let cvtss2sd a b = ins "cvtss2sd %a, %a" a () b ()
+let cvtsd2ss a b = ins "cvtsd2ss %a, %a" a () b ()
 
 
 type program = {

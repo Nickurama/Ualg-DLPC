@@ -5,7 +5,7 @@ type program = stmt list
 
 and stmt =
     | Set of ty * string * expr
-    | Print of expr
+    | Print of ty * expr
 
 and expr =
     | ICst of int32

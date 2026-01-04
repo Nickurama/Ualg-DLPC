@@ -1,4 +1,4 @@
-# dune build arithc.exe
+# dune exec ./arithc.exe test.exp
 # OCAMLPARAM: unset
 # Shared cache: enabled-except-user-rules
 # Shared cache location: /home/luna/.cache/dune/db
@@ -13,30 +13,4 @@
 #  ; build_dir = In_build_dir "default"
 #  ; instrument_with = []
 #  }
-$ /home/luna/.opam/default/bin/ocamlc.opt -config > /tmp/dune_38a0f7_output
-$ (cd _build/default && /home/luna/.opam/default/bin/ocamldep.opt -modules -impl compile.ml) > _build/default/.arithc.eobjs/compile.impl.d
-$ (cd _build/default && /home/luna/.opam/default/bin/ocamldep.opt -modules -intf x86_64.mli) > _build/default/.arithc.eobjs/x86_64.intf.d
-$ (cd _build/default && /home/luna/.opam/default/bin/ocamldep.opt -modules -impl x86_64.ml) > _build/default/.arithc.eobjs/x86_64.impl.d
-$ (cd _build/default && /home/luna/.opam/default/bin/ocamlc.opt -g -bin-annot -bin-annot-occurrences -I .arithc.eobjs/byte -no-alias-deps -opaque -o .arithc.eobjs/byte/x86_64.cmi -c -intf x86_64.mli)
-$ (cd _build/default && /home/luna/.opam/default/bin/ocamlopt.opt -g -I .arithc.eobjs/byte -I .arithc.eobjs/native -cmi-file .arithc.eobjs/byte/compile.cmi -no-alias-deps -opaque -o .arithc.eobjs/native/compile.cmx -c -impl compile.ml)
-> File "compile.ml", line 86, characters 21-24:
-> 86 |         movsd !%xmm0 rsp
->                           ^^^
-> Error: The value rsp has type [>  ] X86_64.register
->        but an expression was expected of type [>  ] X86_64.operand
-[2]
-$ (cd _build/default && /home/luna/.opam/default/bin/ocamlopt.opt -g -I .arithc.eobjs/byte -I .arithc.eobjs/native -cmi-file .arithc.eobjs/byte/x86_64.cmi -no-alias-deps -opaque -o .arithc.eobjs/native/x86_64.cmx -c -impl x86_64.ml)
-> File "x86_64.ml", line 1:
-> Error: The implementation x86_64.ml does not match the interface x86_64.mli: 
->        Values do not match:
->          val movsd : (Format.formatter -> unit -> unit) -> string -> 'a asm
->        is not included in
->          val movsd : [ `O ] operand -> [>  ] operand -> text
->        The type (Format.formatter -> unit -> unit) -> string -> 'a asm
->        is not compatible with the type
->          [ `O ] operand -> [>  ] operand -> text
->        Type string is not compatible with type
->          [>  ] operand = Format.formatter -> unit -> unit
->        File "x86_64.mli", line 186, characters 0-46: Expected declaration
->        File "x86_64.ml", line 184, characters 4-9: Actual declaration
-[2]
+$ /home/luna/.opam/default/bin/ocamlc.opt -config > /tmp/dune_0d98f9_output

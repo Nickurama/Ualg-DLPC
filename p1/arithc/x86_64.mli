@@ -184,6 +184,9 @@ val movzwq: [`W] operand -> [`Q] register -> text
   (** 8->64 bits, with zero extension *)
 
 val movsd: [`O] operand -> [>] operand -> text
+    (** move float64 *)
+val movss: [`O] operand -> [>] operand -> text
+    (** move float32 *)
 
 val movabsq: [`Q] operand -> [`Q] register -> text
   (** copy one 64 bits immediate value to a register *)
@@ -215,21 +218,27 @@ val addw: [`W] operand -> [`W] operand -> text
 val addl: [`L] operand -> [`L] operand -> text
 val addq: [`Q] operand -> [`Q] operand -> text
 val addsd: [`O] operand -> [`O] operand -> text
+val addss: [`O] operand -> [`O] operand -> text
 
 val subb: [`B] operand -> [`B] operand -> text
 val subw: [`W] operand -> [`W] operand -> text
 val subl: [`L] operand -> [`L] operand -> text
 val subq: [`Q] operand -> [`Q] operand -> text
 val subsd: [`O] operand -> [`O] operand -> text
+val subss: [`O] operand -> [`O] operand -> text
 
 val imulw: [`W] operand -> [`W] operand -> text
 val imull: [`L] operand -> [`L] operand -> text
 val imulq: [`Q] operand -> [`Q] operand -> text
 val mulsd: [`O] operand -> [`O] operand -> text
+val mulss: [`O] operand -> [`O] operand -> text
 
 val idivq: [`Q] operand -> text
+val idivl: [`L] operand -> text
 val cqto: text
+val cltd: text
 val divsd: [`O] operand -> [`O] operand -> text
+val divss: [`O] operand -> [`O] operand -> text
 
 (** {2 Logical operations } *)
 
@@ -338,11 +347,40 @@ val pushq : [`Q] operand -> text
 val popq : [`Q] register -> text
   (** [popq r] places the word at the top of the stack into [r] and pops. *)
 
-val cvtsi2sdq: [`Q] operand -> [`O] operand -> text
-    (** converts long to double *)
+(** {2 Conversions} *)
 
-val cvttsd2si: [`O] operand -> [`Q] operand -> text
-    (** converts double to long (truncates) *)
+val cvttss2si: [`O] operand -> [`L] operand -> text
+    (** float32 -> int32 *)
+val cvttss2siq: [`O] operand -> [`Q] operand -> text
+    (** float32 -> int64 *)
+val cvttsd2si: [`O] operand -> [`L] operand -> text
+    (** float64 -> int32 *)
+val cvttsd2siq: [`O] operand -> [`Q] operand -> text
+    (** float64 -> int64 *)
+val cvtsi2ssl: [`L] operand -> [`O] operand -> text
+    (** int32 -> float32 *)
+val cvtsi2sdl: [`L] operand -> [`O] operand -> text
+    (** int32 -> float64 *)
+val cvtsi2ssq: [`Q] operand -> [`O] operand -> text
+    (** int64 -> float32 *)
+val cvtsi2sdq: [`Q] operand -> [`O] operand -> text
+    (** int64 -> float64 *)
+val cvtss2sd: [`O] operand -> [`O] operand -> text
+    (** float32 -> float64 *)
+val cvtsd2ss: [`O] operand -> [`O] operand -> text
+    (** float64 -> float32 *)
+
+
+
+
+(* val cvtsi2sdq: [`Q] operand -> [`O] operand -> text *)
+(*     (** converts long to double *) *)
+(**)
+(* val cvttsd2si: [`O] operand -> [`Q] operand -> text *)
+(*     (** converts double to long (truncates) *) *)
+(**)
+(* val cvtss2sd: [`O] operand -> [`O] operand -> text *)
+(*     (** converts float to double *) *)
 
 (** {2 Miscellaneous} *)
 

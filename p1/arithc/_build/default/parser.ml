@@ -271,7 +271,7 @@ let _menhir_action_14 =
   fun e ->
     (
 # 47 "parser.mly"
-                                      ( Print e )
+                                      ( Print (NoType, e) )
 # 276 "parser.ml"
      : (Ast.stmt))
 

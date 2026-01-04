@@ -1,6 +1,15 @@
+# print 5 + 1.0;
+# print 1.5d + 1;
+# print 1 + 0.2d;
+print 1.0 / 2.0d + 3;
+# print 1.5d + 1;
+# print 0.2d + 1; # solo
 
-print 1 + 2;
-print 1l + 2l;
+# float operations not working, doubles are
+
+# print 2147483648l;
+# print 1 + 2;
+# print 1l + 2l;
 
 # print 1 + 100l;
 
