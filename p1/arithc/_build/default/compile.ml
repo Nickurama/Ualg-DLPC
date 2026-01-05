@@ -13,6 +13,13 @@ module Constants = struct
     let constants_label_i64 = ".csts_i64"
     let constants_label_f32 = ".csts_f32"
     let constants_label_f64 = ".csts_f64"
+
+    let g_var_label_i8 = ".gvar_i8"
+    let g_var_label_i16 = ".gvar_i16"
+    let g_var_label_i32 = ".gvar_i32"
+    let g_var_label_i64 = ".gvar_i64"
+    let g_var_label_f32 = ".gvar_f32"
+    let g_var_label_f64 = ".gvar_f64"
 end
 
 (* Exception to raise when a variable (local or global) isn't used as intended *)
@@ -48,6 +55,13 @@ type f_var = {
 
 (* Global variables *)
 let (global_vars: (string, var_info) Hashtbl.t) = Hashtbl.create 17 (* string -> pos, type, bits *)
+
+let g_vars_i8 = dl_create ()
+let g_vars_i16 = dl_create ()
+let g_vars_i32 = dl_create ()
+let g_vars_i64 = dl_create ()
+let g_vars_f32 = dl_create ()
+let g_vars_f64 = dl_create ()
 
 (* Constant pool *)
 let (constants_int: (i_var, var_info) Hashtbl.t) = Hashtbl.create 17 (* string -> pos, type, bits *)
@@ -111,7 +125,7 @@ let convert from_t to_t =
     (* convert *)
     (* push *)
     match (from_t, to_t) with
-    | (NoType, _) | (_, NoType) -> raise (VarUndef "Variable with no type!") (* not supposed to happen *)
+    | (NoType, _) | (_, NoType) -> raise (VarUndef "Variable with no type! (convert)") (* not supposed to happen *)
     | (TInt, TInt) | (TLong, TLong) | (TFloat, TFloat) | (TDouble, TDouble) -> nop
     | (TInt, TLong) ->
         pop_int32 !%eax ++
@@ -128,7 +142,7 @@ let convert from_t to_t =
     | (TLong, TInt) ->
         pop_int64 rax ++
         movl !%eax !%eax ++
-        push_int32 !%ebx
+        push_int32 !%eax
     | (TLong, TFloat) ->
         pop_int64 rax ++
         cvtsi2ssq !%rax !%xmm0 ++
@@ -223,14 +237,30 @@ let compile_expr =
             movsd (label_ref lbl rel_pos) !%xmm0 ++
             push_float64 !%xmm0
         | Var (t, x) ->
-            (* TODO *)
-            (* let first_offset = 8 * (Hashtbl.length global_vars - 1) in *)
-            (* let bottom_offset = 8 * (Hashtbl.find global_vars x) in *)
-            (* let bottom_offset = 8 in *)
-            (* let var_offset = first_offset - bottom_offset in *)
-            (* movq (ind ~ofs:var_offset rsp) !%rax ++ *)
-            (* pushq !%rax *)
-            nop
+            (
+                match t with
+                | NoType -> raise (VarUndef "Variable with no type! (compile var)")
+                | TInt ->
+                    let lbl = Constants.g_var_label_i32 in
+                    let pos = Int64.of_int (Hashtbl.find global_vars x).pos in
+                    movl (label_ref lbl pos) !%eax ++
+                    push_int32 !%eax
+                | TLong ->
+                    let lbl = Constants.g_var_label_i64 in
+                    let pos = Int64.of_int (Hashtbl.find global_vars x).pos in
+                    movq (label_ref lbl pos) !%rax ++
+                    push_int64 !%rax
+                | TFloat ->
+                    let lbl = Constants.g_var_label_f32 in
+                    let pos = Int64.of_int (Hashtbl.find global_vars x).pos in
+                    movss (label_ref lbl pos) !%xmm0 ++
+                    push_float32 !%xmm0
+                | TDouble ->
+                    let lbl = Constants.g_var_label_f64 in
+                    let pos = Int64.of_int (Hashtbl.find global_vars x).pos in
+                    movsd (label_ref lbl pos) !%xmm0 ++
+                    push_float64 !%xmm0
+            )
         | Binop (t_result, o, t1, e1, t2, e2) -> (
             comprec env next e1 ++
             convert t1 t_result ++
@@ -239,7 +269,7 @@ let compile_expr =
             convert t2 t_result ++
 
             match t_result with
-            | NoType -> raise (VarUndef "Variable with no type!") (* not supposed to happen *)
+            | NoType -> raise (VarUndef "Variable with no type! (compile binop)") (* not supposed to happen *)
             | TInt ->
                 pop_int32 !%eax ++
                 pop_int32 !%edi ++
@@ -290,63 +320,45 @@ let compile_expr =
                     | Div -> divsd !%xmm0 !%xmm1
                 ) ++
                 push_float64 !%xmm1
-            (* if is_int t_result then *)
-            (*     popq rax ++ *)
-            (*     popq rdi ++ *)
-            (**)
-            (*     ( *)
-            (*         match o with *)
-            (*         | Add -> addq !%rdi !%rax *)
-            (*         | Sub -> subq !%rax !%rdi ++ *)
-            (*                 movq !%rdi !%rax *)
-            (*         | Mul -> imulq !%rdi !%rax *)
-            (*         | Div -> movq !%rax !%rsi ++ *)
-            (*                 movq !%rdi !%rax ++ *)
-            (*                 cqto ++ *)
-            (*                 idivq !%rsi *)
-            (*     ) ++ *)
-            (*     pushq !%rax *)
-            (* else *)
-            (*     movsd (ind rsp) !%xmm0 ++ *)
-            (*     addq (imm 16) !%rsp ++ *)
-            (*     movsd (ind rsp) !%xmm1 ++ *)
-            (*     addq (imm 16) !%rsp ++ *)
-            (*     ( *)
-            (*         match o with *)
-            (*         | Add -> addsd !%xmm0 !%xmm1 *)
-            (*         | Sub -> subsd !%xmm0 !%xmm1 *)
-            (*         | Mul -> mulsd !%xmm0 !%xmm1 *)
-            (*         | Div -> divsd !%xmm0 !%xmm1 *)
-            (*     ) ++ *)
-            (*     subq (imm 16) !%rsp ++ *)
-            (*     movsd !%xmm1 (ind rsp) *)
         )
-        (* | Letin (x, e1, e2) -> *)
-        (*     if !frame_size = next then frame_size := 8 + !frame_size; *)
   in
   comprec StrMap.empty 0
 
 (* Instruction compilation *)
 let compile_instr = function
-    | Set (t, x, e) ->
-        (* if Hashtbl.mem global_vars_type x then *)
-        (*     raise (VarDup ("Redefinition of '" ^ x ^ "'.")) *)
-        (* else begin *)
-        (*     Hashtbl.add global_vars_type x t; *)
-        (*     match t with *)
-        (*     | NoType -> raise (VarUndef "Variable with no type!") (* not supposed to happen *) *)
-        (*     | TInt -> Hashtbl.add global_vars_32bit x (Hashtbl.length global_vars_32bit) *)
-        (*     | TLong -> Hashtbl.add global_vars_64bit x (Hashtbl.length global_vars_64bit) *)
-        (*     | TFloat -> Hashtbl.add global_vars_f32bit x (Hashtbl.length global_vars_f32bit) *)
-        (*     | TDouble -> Hashtbl.add global_vars_f64bit x (Hashtbl.length global_vars_f64bit) *)
-        (* end; *)
-        compile_expr e
+    | Set (t1, x, t2, e) ->
+        compile_expr e ++
+        convert t2 t1 ++
+        (
+            match t1 with
+            | NoType -> raise (VarUndef "Variable with no type (compile Set 2)!") (* not supposed to happen *)
+            | TInt ->
+                let lbl = Constants.g_var_label_i32 in
+                let pos = Int64.of_int (Hashtbl.find global_vars x).pos in
+                pop_int32 !%eax ++
+                movl !%eax (label_ref lbl pos)
+            | TLong ->
+                let lbl = Constants.g_var_label_i64 in
+                let pos = Int64.of_int (Hashtbl.find global_vars x).pos in
+                pop_int64 rax ++
+                movq !%rax (label_ref lbl pos)
+            | TFloat ->
+                let lbl = Constants.g_var_label_f32 in
+                let pos = Int64.of_int (Hashtbl.find global_vars x).pos in
+                pop_float32 !%xmm0 ++
+                movss !%xmm0 (label_ref lbl pos)
+            | TDouble ->
+                let lbl = Constants.g_var_label_f64 in
+                let pos = Int64.of_int (Hashtbl.find global_vars x).pos in
+                pop_float64 !%xmm0 ++
+                movsd !%xmm0 (label_ref lbl pos)
+        )
     | Print (t, e) ->
         compile_expr e ++
         match t with
-        | NoType -> raise (VarUndef "Variable with no type!") (* not supposed to happen *)
+        | NoType -> raise (VarUndef "Variable with no type! (compile Print)") (* not supposed to happen *)
         | TInt ->
-            pop_int32 !%eax ++
+            pop_int32 !%edi ++
             call "print_int"
         | TLong ->
             pop_int64 rdi ++
@@ -369,7 +381,7 @@ let infer_type = function
 
 let type_of_binop o t1 t2 =
         match (t1, t2) with
-        | (NoType, _) | (_, NoType) -> raise (VarUndef "Variable with no type!") (* not supposed to happen *)
+        | (NoType, _) | (_, NoType) -> raise (VarUndef "Variable with no type! (type of binop)") (* not supposed to happen *)
         | (TInt, TInt) -> TInt
         | (TInt, TLong) | (TLong, TInt) -> TLong
         | (TInt, TFloat) | (TFloat, TInt) -> TFloat
@@ -381,7 +393,11 @@ let type_of_binop o t1 t2 =
         | (TFloat, TDouble) | (TDouble, TFloat) -> TDouble
         | (TDouble, TDouble) -> TDouble
 
-let get_var_type = function x -> NoType (* TODO *)
+let get_var_type = function x ->
+    if not (Hashtbl.mem global_vars x) then
+        raise (VarUndef ("Variable '" ^ x ^ "' not found."))
+    else
+        (Hashtbl.find global_vars x).var_type
 
 let rec gen_typing_expr = function
         | ICst i -> ICst (i)
@@ -403,9 +419,28 @@ let rec gen_typing_expr = function
                 Binop (t_result, o, t1, typed_e1, t2, typed_e2)
 
 let gen_typing = function
-    | Set (t, x, e) ->
-        (* let expr_type = gen_typing_expr e in *)
-        Set (t, x, e) (* TODO *)
+    | Set (t1, x, _, e) ->
+        let typed_e = gen_typing_expr e in
+        let t2 = infer_type typed_e in
+        if Hashtbl.mem global_vars x then
+            raise (VarDup ("Redefinition of '" ^ x ^ "'."))
+        else begin
+            match t1 with
+            | NoType -> raise (VarUndef "Variable with no type! (compile Set)") (* not supposed to happen *)
+            | TInt ->
+                    Hashtbl.add global_vars x {pos = g_vars_i32.length; var_type = t1; num_bits = T_32bit};
+                    dl_push g_vars_i32 x
+            | TLong ->
+                    Hashtbl.add global_vars x {pos = g_vars_i64.length; var_type = t1; num_bits = T_64bit};
+                    dl_push g_vars_i64 x
+            | TFloat ->
+                    Hashtbl.add global_vars x {pos = g_vars_f32.length; var_type = t1; num_bits = T_f32bit};
+                    dl_push g_vars_f32 x
+            | TDouble ->
+                    Hashtbl.add global_vars x {pos = g_vars_f64.length; var_type = t1; num_bits = T_f64bit};
+                    dl_push g_vars_f64 x
+        end;
+        Set (t1, x, t2, typed_e)
     | Print (_, e) ->
         let expr_typed = gen_typing_expr e in
         let t = infer_type expr_typed in
@@ -504,7 +539,21 @@ let compile_program p ofile =
                 label Constants.constants_label_f32 ++
                 dfloat (dl_get_list constants_f32) ++
                 label Constants.constants_label_f64 ++
-                ddouble (dl_get_list constants_f64)
+                ddouble (dl_get_list constants_f64) ++
+
+                (* global variables *)
+                label Constants.g_var_label_i8 ++
+                dbyte (List.init g_vars_i8.length (fun _ -> 0)) ++
+                label Constants.g_var_label_i16 ++
+                dword (List.init g_vars_i16.length (fun _ -> 0)) ++
+                label Constants.g_var_label_i32 ++
+                dint (List.init g_vars_i32.length (fun _ -> Int32.of_int 0)) ++
+                label Constants.g_var_label_i64 ++
+                dquad (List.init g_vars_i64.length (fun _ -> Int64.of_int 0)) ++
+                label Constants.g_var_label_f32 ++
+                dfloat (List.init g_vars_f32.length (fun _ -> 0.0)) ++
+                label Constants.g_var_label_f64 ++
+                ddouble (List.init g_vars_f64.length (fun _ -> 0.0))
 
 
                 (* Hashtbl.fold (fun x _ l -> label x ++ dquad [1] ++ l) global_vars *)

@@ -81,8 +81,8 @@ let () =
 	exit 1
     | Compile.VarUndef s->
 	(* Erro derivado de um mau uso de variável durante a compilação *)
-	eprintf
-	  "Compilation Error: The variable %s is not definded@." s;
+        eprintf "Compilation Error: %s\n" s;
+	  (* "Compilation Error: The variable %s is not defined@." s; *)
 	exit 1
 
 

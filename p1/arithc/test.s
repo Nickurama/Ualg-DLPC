@@ -3,42 +3,32 @@
 main:
 	pushq %rbp
 	movq %rsp, %rbp
-	movsd .csts_f32+0(%rip), %xmm0
-	subq $4, %rsp
-	movss %xmm0, 0(%rsp)
-	movss 0(%rsp), %xmm0
-	addq $4, %rsp
-	cvtss2sd %xmm0, %xmm0
-	subq $8, %rsp
-	movsd %xmm0, 0(%rsp)
-	movsd .csts_f64+0(%rip), %xmm0
-	subq $8, %rsp
-	movsd %xmm0, 0(%rsp)
-	movsd 0(%rsp), %xmm0
-	addq $8, %rsp
-	movsd 0(%rsp), %xmm1
-	addq $8, %rsp
-	divsd %xmm0, %xmm1
-	subq $8, %rsp
-	movsd %xmm1, 0(%rsp)
 	movl .csts_i32+0(%rip), %eax
 	subq $4, %rsp
 	movl %eax, 0(%rsp)
 	movl 0(%rsp), %eax
 	addq $4, %rsp
-	cvtsi2sdl %eax, %xmm0
-	subq $8, %rsp
-	movsd %xmm0, 0(%rsp)
-	movsd 0(%rsp), %xmm0
-	addq $8, %rsp
-	movsd 0(%rsp), %xmm1
-	addq $8, %rsp
-	addsd %xmm0, %xmm1
-	subq $8, %rsp
-	movsd %xmm1, 0(%rsp)
-	movsd 0(%rsp), %xmm0
-	addq $8, %rsp
-	call print_double
+	movslq %eax, %rax
+	pushq %rax
+	movq .csts_i64+0(%rip), %rax
+	pushq %rax
+	popq %rax
+	popq %rdi
+	addq %rdi, %rax
+	pushq %rax
+	popq %rax
+	cvtsi2ssq %rax, %xmm0
+	subq $4, %rsp
+	movss %xmm0, 0(%rsp)
+	movss 0(%rsp), %xmm0
+	addq $4, %rsp
+	movss %xmm0, .gvar_f32+0(%rip)
+	movss .gvar_f32+0(%rip), %xmm0
+	subq $4, %rsp
+	movss %xmm0, 0(%rsp)
+	movss 0(%rsp), %xmm0
+	addq $4, %rsp
+	call print_float
 	popq %rbp
 	movq $0, %rax
 	ret
@@ -91,10 +81,22 @@ print_double:
 .csts_i16:
 	.word 
 .csts_i32:
-	.int 3
+	.int 2147483647
 .csts_i64:
-	.quad 
+	.quad 1
 .csts_f32:
-	.float 1.000000
+	.float 
 .csts_f64:
-	.double 2.000000
+	.double 
+.gvar_i8:
+	.byte 
+.gvar_i16:
+	.word 
+.gvar_i32:
+	.int 
+.gvar_i64:
+	.quad 
+.gvar_f32:
+	.float 0.000000
+.gvar_f64:
+	.double 
