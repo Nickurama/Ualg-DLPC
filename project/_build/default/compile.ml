@@ -230,19 +230,43 @@ let get_bytes_until_local_var f_id var_id =
     let l_vars = !((Hashtbl.find func_vars f_id).items) in
     let local_var_type = ref NoType in
     let previous_vars = List.fold_left (
-        fun acc x -> match acc with
-        | [] -> [x]
-        | head :: tail -> if head = x then (local_var_type := x.var_type; acc) else x :: acc
+        fun acc x ->
+            if !local_var_type = NoType then begin
+                if var_id = x.id then
+                    (local_var_type := x.var_type);
+                x :: acc
+            end
+            else acc
     ) [] l_vars in
-    (List.fold_right (fun x acc -> acc + (type_bytes x.var_type)) previous_vars 0) - (type_bytes !local_var_type)
+    (* let () = printf "all vars: " in *)
+    (* let () = List.iter (fun x -> printf "%s " x.id) l_vars in *)
+    (* let () = printf "\n" in *)
+    (* let () = printf "previous_vars: " in *)
+    (* let () = List.iter (fun x -> printf "%s " x.id) previous_vars in *)
+    (* let () = printf "\n" in *)
+    (* let () = printf "var: %s\n" var_id in *)
+    (* let () = match !local_var_type with *)
+    (* | NoType -> printf "NoType\n" *)
+    (* | TInt -> printf "NoType\n" *)
+    (* | TLong -> printf "NoType\n" *)
+    (* | TFloat -> printf "NoType\n" *)
+    (* | TDouble -> printf "NoType\n" *)
+    (* in *)
+    (List.fold_right (fun x acc -> acc + (type_bytes x.var_type)) previous_vars 0)
 
 let get_bytes_after_arg_var f_id var_id =
     let l_vars = !((Hashtbl.find func_args f_id).items) in
     let local_var_type = ref NoType in
     let following_vars = List.fold_right (
-        fun x acc -> match acc with
-        | [] -> [x]
-        | head :: tail -> if head = x then (local_var_type := x.var_type; acc) else x :: acc
+        fun x acc ->
+            if !local_var_type = NoType then begin
+                if var_id = x.id then begin
+                (local_var_type := x.var_type);
+                [x]
+                end
+                else x :: acc;
+            end
+            else acc
     ) l_vars [] in
     (List.fold_right (fun x acc -> acc + (type_bytes x.var_type)) following_vars 0) - (type_bytes !local_var_type)
 
@@ -270,9 +294,13 @@ let get_var_pos f_id scope var_id var_t =
         let pos = (Hashtbl.find global_vars var_id).pos in
         Int64.of_int ((type_bytes var_t) * pos)
 
+let move_to_based_on_nature lbl real_pos = function
+    | Local -> (ind64 ~ofs:(Int64.neg real_pos) rbp)
+    | Argument -> (ind64 ~ofs:(real_pos) rbp)
+    | Global -> (label_ref lbl real_pos)
 
 (* Expression compilation *)
-let rec compile_expr (f_id: string) (scope: int) = function
+let rec compile_expr f_id scope = function
     | ICst i ->
         let i_64 = {i_value = Int64.of_int32 i; v_type = TInt}in
         let lbl = Constants.constants_label_i32 in
@@ -330,29 +358,29 @@ let rec compile_expr (f_id: string) (scope: int) = function
         movsd (label_ref lbl rel_pos) !%xmm0 ++
         push_float64 !%xmm0
     | Var (t, x) ->
-        (* TODO *)
+        let v_nature = get_var_nature f_id scope x in
         (
             match t with
             | NoType -> raise (VarUndef "Variable with no type! (compile var)")
             | TInt ->
                 let lbl = Constants.g_var_label_i32 in
                 let real_pos = get_var_pos f_id scope x t in
-                movl (label_ref lbl real_pos) !%eax ++
+                movl (move_to_based_on_nature lbl real_pos v_nature) !%eax ++
                 push_int32 !%eax
             | TLong ->
                 let lbl = Constants.g_var_label_i64 in
                 let real_pos = get_var_pos f_id scope x t in
-                movq (label_ref lbl real_pos) !%rax ++
+                movq (move_to_based_on_nature lbl real_pos v_nature) !%rax ++
                 push_int64 !%rax
             | TFloat ->
                 let lbl = Constants.g_var_label_f32 in
                 let real_pos = get_var_pos f_id scope x t in
-                movss (label_ref lbl real_pos) !%xmm0 ++
+                movss(move_to_based_on_nature lbl real_pos v_nature) !%xmm0 ++
                 push_float32 !%xmm0
             | TDouble ->
                 let lbl = Constants.g_var_label_f64 in
                 let real_pos = get_var_pos f_id scope x t in
-                movsd (label_ref lbl real_pos) !%xmm0 ++
+                movsd(move_to_based_on_nature lbl real_pos v_nature) !%xmm0 ++
                 push_float64 !%xmm0
         )
     | Binop (t_result, o, t1, e1, t2, e2) -> (
@@ -416,15 +444,9 @@ let rec compile_expr (f_id: string) (scope: int) = function
             push_float64 !%xmm1
     )
 
-let move_to_based_on_nature lbl real_pos = function
-    | Local -> (ind64 ~ofs:(Int64.neg real_pos) rbp)
-    | Argument -> (ind64 ~ofs:(real_pos) rbp)
-    | Global -> (label_ref lbl real_pos)
-
 (* assumes the value to assign is currently at the top of the stack *)
 let assign_var f_id scope t x =
     let v_nature = get_var_nature f_id scope x in
-    (* TODO *)
     (
         match t with
         | NoType -> raise (VarUndef "Variable with no type (compile Set 2)!") (* not supposed to happen *)
@@ -453,13 +475,15 @@ let assign_var f_id scope t x =
 (* Instruction compilation *)
 let compile_instr f_id scope = function
     | Set (t1, x, t2, e) ->
-        (* TODO *)
         compile_expr f_id scope e ++
         convert t2 t1 ++
         assign_var f_id scope t1 x
     | Assign (x, t, e) ->
-        (* TODO *)
-        let var_type = (Hashtbl.find global_vars x).var_type in
+        let v_nature = get_var_nature f_id scope x in
+        let var_type = match v_nature with
+        | Local | Argument -> (Hashtbl.find local_vars { func = f_id; var = x; scope = scope }).var_type
+        | Global -> (Hashtbl.find global_vars x).var_type
+        in
         compile_expr f_id scope e ++
         convert t var_type ++
         assign_var f_id scope var_type x
@@ -488,6 +512,8 @@ let compile_stmt = function
     | Function (t, id, args, scope) ->
         let f_local_vars = if Hashtbl.mem func_vars id then !((Hashtbl.find func_vars id).items) else [] in
         let f_local_vars_bytes = List.fold_right (fun x acc -> acc + (type_bytes x.var_type)) f_local_vars 0 in
+        let remainder_align = Int64.sub (Int64.of_int 16) (Int64.rem (Int64.of_int f_local_vars_bytes) (Int64.of_int 16)) in
+        let bytes_real = Int64.add (Int64.of_int f_local_vars_bytes) remainder_align in
         let code = List.map (compile_instr id 1) scope in
         let code = List.fold_right (++) code nop in
 
@@ -497,13 +523,15 @@ let compile_stmt = function
         movq !%rsp !%rbp ++
 
         (* add args *)
-        subq (imm f_local_vars_bytes) !%rsp ++
+        subq (imm64 bytes_real) !%rsp ++
+        (* subq (imm f_local_vars_bytes) !%rsp ++ *)
 
         (* scope *)
         code ++
 
         (* remove args *)
-        addq (imm f_local_vars_bytes) !%rsp ++
+        addq (imm64 bytes_real) !%rsp ++
+        (* addq (imm f_local_vars_bytes) !%rsp ++ *)
 
         (* function end *)
         popq rbp ++
@@ -516,7 +544,7 @@ let compile_stmt_g_vars = function
     | Set (t1, x, t2, e) ->
         compile_expr "" 0 e ++
         convert t2 t1 ++
-        assign_var t1 x
+        assign_var "" 0 t1 x
 
 let infer_type = function
     | ICst i -> TInt
@@ -706,6 +734,7 @@ let helper_functions =
 (* Compiles program p and saves to file ofile *)
 let compile_program (p: Ast.program) ofile =
     let p = List.map gen_typing p in (* generate typing *)
+    let () = printf "Types done.\n" in
     (* List.iter setup_local_vars p; *)
     let g_vars_code = List.map compile_stmt_g_vars p in
     let g_vars_code = List.fold_right (++) g_vars_code nop in
