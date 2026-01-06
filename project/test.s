@@ -8,35 +8,63 @@ main:
 	movl %eax, 0(%rsp)
 	movl 0(%rsp), %eax
 	addq $4, %rsp
-	movl %eax, .gvar_i32+0(%rip)
-	movl .gvar_i32+0(%rip), %eax
-	subq $4, %rsp
-	movl %eax, 0(%rsp)
-	movl 0(%rsp), %edi
-	addq $4, %rsp
-	call print_int
-	movl .gvar_i32+0(%rip), %eax
-	subq $4, %rsp
-	movl %eax, 0(%rsp)
-	movl .csts_i32+0(%rip), %eax
+	cvtsi2sdl %eax, %xmm0
+	subq $8, %rsp
+	movsd %xmm0, 0(%rsp)
+	movsd 0(%rsp), %xmm0
+	addq $8, %rsp
+	movsd %xmm0, .gvar_f64+0(%rip)
+	movl .csts_i32+4(%rip), %eax
 	subq $4, %rsp
 	movl %eax, 0(%rsp)
 	movl 0(%rsp), %eax
 	addq $4, %rsp
-	movl 0(%rsp), %edi
-	addq $4, %rsp
-	addl %edi, %eax
-	subq $4, %rsp
-	movl %eax, 0(%rsp)
-	movl 0(%rsp), %eax
-	addq $4, %rsp
-	movl %eax, .gvar_i32+0(%rip)
-	movl .gvar_i32+0(%rip), %eax
-	subq $4, %rsp
-	movl %eax, 0(%rsp)
-	movl 0(%rsp), %edi
-	addq $4, %rsp
-	call print_int
+	cvtsi2sdl %eax, %xmm0
+	subq $8, %rsp
+	movsd %xmm0, 0(%rsp)
+	movsd 0(%rsp), %xmm0
+	addq $8, %rsp
+	movsd %xmm0, .gvar_f64+8(%rip)
+	movsd .gvar_f64+0(%rip), %xmm0
+	subq $8, %rsp
+	movsd %xmm0, 0(%rsp)
+	movsd 0(%rsp), %xmm0
+	addq $8, %rsp
+	call print_double
+	movsd .gvar_f64+8(%rip), %xmm0
+	subq $8, %rsp
+	movsd %xmm0, 0(%rsp)
+	movsd 0(%rsp), %xmm0
+	addq $8, %rsp
+	call print_double
+	movsd .gvar_f64+0(%rip), %xmm0
+	subq $8, %rsp
+	movsd %xmm0, 0(%rsp)
+	movsd .gvar_f64+8(%rip), %xmm0
+	subq $8, %rsp
+	movsd %xmm0, 0(%rsp)
+	movsd 0(%rsp), %xmm0
+	addq $8, %rsp
+	movsd 0(%rsp), %xmm1
+	addq $8, %rsp
+	addsd %xmm0, %xmm1
+	subq $8, %rsp
+	movsd %xmm1, 0(%rsp)
+	movsd 0(%rsp), %xmm0
+	addq $8, %rsp
+	movsd %xmm0, .gvar_f64+0(%rip)
+	movsd .gvar_f64+0(%rip), %xmm0
+	subq $8, %rsp
+	movsd %xmm0, 0(%rsp)
+	movsd 0(%rsp), %xmm0
+	addq $8, %rsp
+	call print_double
+	movsd .gvar_f64+8(%rip), %xmm0
+	subq $8, %rsp
+	movsd %xmm0, 0(%rsp)
+	movsd 0(%rsp), %xmm0
+	addq $8, %rsp
+	call print_double
 	popq %rbp
 	movq $0, %rax
 	ret
@@ -89,7 +117,7 @@ print_double:
 .csts_i16:
 	.word 
 .csts_i32:
-	.int 3
+	.int 3, 5
 .csts_i64:
 	.quad 
 .csts_f32:
@@ -101,10 +129,10 @@ print_double:
 .gvar_i16:
 	.word 
 .gvar_i32:
-	.int 0
+	.int 
 .gvar_i64:
 	.quad 
 .gvar_f32:
 	.float 
 .gvar_f64:
-	.double 
+	.double 0.000000, 0.000000

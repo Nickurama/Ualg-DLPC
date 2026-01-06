@@ -1,12 +1,12 @@
 # TODO
-- assignment operator
 - functions
 - local variables
+
 - if statements
+
 - while loop (for?)
-- arrays????
-- resizeable vectors????
-- pointers????
-- compiling error messages
-- type checking error messages
+
+- compiling error messages ???
+- type checking error messages ???
+
 - report

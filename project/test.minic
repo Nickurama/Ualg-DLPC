@@ -1,34 +1,7 @@
-int x = 3;
+double x = 3;
+double y = 5;
 print(x);
-x = x + 3;
+print(y);
+x = x + y;
 print(x);
-
-# long -> int failling
-
-
-# double d = 4.3d;
-# print(x + d + 1.0);
-# print(10.3d);
-
-# print((1) + (2.0d));
-
-# print 2.0d / (2 + 3);
-# print 0.4d;
-#
-# print 5 + 1.0;
-# print 6.0;
-#
-# print 1.5d + 1;
-# print 2.5d;
-#
-# print 1 + 0.2d;
-# print 1.2d;
-#
-# print 1.0 / 2.0d + 3;
-# print 3.5d;
-#
-# print 1.5d + 1;
-# print 2.5d;
-#
-# print 0.2 + 1l;
-# print 1.2d;
+print(y);

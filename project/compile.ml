@@ -170,6 +170,10 @@ let convert from_t to_t =
         push_float32 !%xmm0
 
 
+let get_var_pos x var_size_bytes =
+    let pos = (Hashtbl.find global_vars x).pos in
+    Int64.of_int (var_size_bytes * pos)
+
 (* Expression compilation *)
 let compile_expr =
     let rec comprec env next = function
@@ -235,23 +239,23 @@ let compile_expr =
                 | NoType -> raise (VarUndef "Variable with no type! (compile var)")
                 | TInt ->
                     let lbl = Constants.g_var_label_i32 in
-                    let pos = Int64.of_int (Hashtbl.find global_vars x).pos in
-                    movl (label_ref lbl pos) !%eax ++
+                    let real_pos = get_var_pos x 4 in
+                    movl (label_ref lbl real_pos) !%eax ++
                     push_int32 !%eax
                 | TLong ->
                     let lbl = Constants.g_var_label_i64 in
-                    let pos = Int64.of_int (Hashtbl.find global_vars x).pos in
-                    movq (label_ref lbl pos) !%rax ++
+                    let real_pos = get_var_pos x 8 in
+                    movq (label_ref lbl real_pos) !%rax ++
                     push_int64 !%rax
                 | TFloat ->
                     let lbl = Constants.g_var_label_f32 in
-                    let pos = Int64.of_int (Hashtbl.find global_vars x).pos in
-                    movss (label_ref lbl pos) !%xmm0 ++
+                    let real_pos = get_var_pos x 4 in
+                    movss (label_ref lbl real_pos) !%xmm0 ++
                     push_float32 !%xmm0
                 | TDouble ->
                     let lbl = Constants.g_var_label_f64 in
-                    let pos = Int64.of_int (Hashtbl.find global_vars x).pos in
-                    movsd (label_ref lbl pos) !%xmm0 ++
+                    let real_pos = get_var_pos x 8 in
+                    movsd (label_ref lbl real_pos) !%xmm0 ++
                     push_float64 !%xmm0
             )
         | Binop (t_result, o, t1, e1, t2, e2) -> (
@@ -324,24 +328,24 @@ let assign_var t x =
         | NoType -> raise (VarUndef "Variable with no type (compile Set 2)!") (* not supposed to happen *)
         | TInt ->
             let lbl = Constants.g_var_label_i32 in
-            let pos = Int64.of_int (Hashtbl.find global_vars x).pos in
+            let real_pos = get_var_pos x 4 in
             pop_int32 !%eax ++
-            movl !%eax (label_ref lbl pos)
+            movl !%eax (label_ref lbl real_pos)
         | TLong ->
             let lbl = Constants.g_var_label_i64 in
-            let pos = Int64.of_int (Hashtbl.find global_vars x).pos in
+            let real_pos = get_var_pos x 8 in
             pop_int64 rax ++
-            movq !%rax (label_ref lbl pos)
+            movq !%rax (label_ref lbl real_pos)
         | TFloat ->
             let lbl = Constants.g_var_label_f32 in
-            let pos = Int64.of_int (Hashtbl.find global_vars x).pos in
+            let real_pos = get_var_pos x 4 in
             pop_float32 !%xmm0 ++
-            movss !%xmm0 (label_ref lbl pos)
+            movss !%xmm0 (label_ref lbl real_pos)
         | TDouble ->
             let lbl = Constants.g_var_label_f64 in
-            let pos = Int64.of_int (Hashtbl.find global_vars x).pos in
+            let real_pos = get_var_pos x 8 in
             pop_float64 !%xmm0 ++
-            movsd !%xmm0 (label_ref lbl pos)
+            movsd !%xmm0 (label_ref lbl real_pos)
     )
 
 (* Instruction compilation *)
