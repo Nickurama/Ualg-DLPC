@@ -25,6 +25,14 @@ main:
 	movsd 0(%rsp), %xmm0
 	addq $8, %rsp
 	movsd %xmm0, .gvar_f64+8(%rip)
+	call .f_main
+	popq %rbp
+	movq $0, %rax
+	ret
+.f_main:
+	pushq %rbp
+	movq %rsp, %rbp
+	subq $0, %rsp
 	movsd .gvar_f64+0(%rip), %xmm0
 	subq $8, %rsp
 	movsd %xmm0, 0(%rsp)
@@ -65,8 +73,8 @@ main:
 	movsd 0(%rsp), %xmm0
 	addq $8, %rsp
 	call print_double
+	addq $0, %rsp
 	popq %rbp
-	movq $0, %rax
 	ret
 print_int:
 	pushq %rbp

@@ -2,11 +2,13 @@ type token =
     TYPE of Ast.ty
   | TIMES
   | RP
+  | RB
   | PRINT
   | PLUS
   | MINUS
   | LP
   | LCST of int64
+  | LB
   | IDENT of string
   | ICST of int32
   | FCST of float
@@ -15,10 +17,16 @@ type token =
   | END_INST
   | DIV
   | DCST of float
+  | COMMA
 val menhir_begin_marker : int
 val xv_stmts : Ast.stmt list
 val xv_stmt : Ast.stmt
+val xv_scope : Ast.scope
 val xv_prog : Ast.program
 val xv_op : Ast.binop
+val xv_insts : Ast.inst list
+val xv_inst : Ast.inst
 val xv_expr : Ast.expr
+val xv_args : Ast.arg list
+val xv_arg : Ast.arg
 val menhir_end_marker : int

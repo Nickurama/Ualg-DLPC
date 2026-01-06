@@ -20,6 +20,8 @@ module Constants = struct
     let g_var_label_i64 = ".gvar_i64"
     let g_var_label_f32 = ".gvar_f32"
     let g_var_label_f64 = ".gvar_f64"
+
+    let main_func_name = "main"
 end
 
 (* Exception to raise when a variable (local or global) isn't used as intended *)
@@ -29,18 +31,23 @@ exception VarDup of string (* duplicate variable *)
 (* Frame size, in bytes (each local variables occupies 8 bytes) *)
 let frame_size = ref 0
 
-type bit_size =
-    | T_8bit
-    | T_16bit
-    | T_32bit
-    | T_64bit
-    | T_f32bit
-    | T_f64bit
+(* type bit_size = *)
+(*     | T_8bit *)
+(*     | T_16bit *)
+(*     | T_32bit *)
+(*     | T_64bit *)
+(*     | T_f32bit *)
+(*     | T_f64bit *)
 
 type var_info = {
     pos: int;
     var_type: ty;
-    num_bits: bit_size;
+}
+
+type func_var = {
+    func: string;
+    var: string;
+    scope: int;
 }
 
 type i_var = {
@@ -78,39 +85,58 @@ let constants_f64 = dl_create ()
 (* hashtable with number of variables for a given function *)
 let (func_var_num : (string, int) Hashtbl.t) = Hashtbl.create 17
 
-(* Usamos uma tabela associativa cujas chaves são variáveis locais, i.e. uma tabela de
-   símbolos locais cujas chaves são strings e os valores são a posição desta variável
-   relativamente a %rbp (em bytes) *)
-module StrMap = Map.Make(String)
+(* local variables *)
+let (local_vars: (func_var, var_info) Hashtbl.t) = Hashtbl.create 17 (* string -> pos, type, bits *)
+let (func_vars: (string, string dyn_list) Hashtbl.t) = Hashtbl.create 17 (* string -> pos, type, bits *)
+
+let gen_func_name x =
+    ".f_" ^ x
+
+let type_bytes = function
+    | NoType -> raise (VarUndef "Variable with no type! (push arg)") (* not supposed to happen *)
+    | TInt -> 4
+    | TLong -> 8
+    | TFloat -> 4
+    | TDouble -> 8
+
+(* let pop_val t reg = *)
+(*     movl (ind rsp) reg ++ *)
+(*     addq (imm (type_bytes t)) !%rsp *)
+(**)
+(* let push_val t reg = *)
+(*     subq (imm (type_bytes t)) !%rsp ++ *)
+(*     movl reg (ind rsp) *)
 
 let pop_int32 r =
     movl (ind rsp) r ++
-    addq (imm 4) !%rsp
+    addq (imm (type_bytes TInt)) !%rsp
 
 let push_int32 r =
-    subq (imm 4) !%rsp ++
+    subq (imm (type_bytes TInt)) !%rsp ++
     movl r (ind rsp)
 
 let pop_int64 r =
-    popq r
+    movq (ind rsp) r ++
+    addq (imm (type_bytes TLong)) !%rsp
 
 let push_int64 r =
-    pushq r
+    subq (imm (type_bytes TLong)) !%rsp ++
+    movq r (ind rsp)
 
 let pop_float32 r =
     movss (ind rsp) r ++
-    addq (imm 4) !%rsp
+    addq (imm (type_bytes TFloat)) !%rsp
 
 let push_float32 r =
-    subq (imm 4) !%rsp ++
+    subq (imm (type_bytes TFloat)) !%rsp ++
     movss r (ind rsp)
 
 let pop_float64 r =
     movsd (ind rsp) r ++
-    addq (imm 8) !%rsp
+    addq (imm (type_bytes TDouble)) !%rsp
 
 let push_float64 r =
-    subq (imm 8) !%rsp ++
+    subq (imm (type_bytes TDouble)) !%rsp ++
     movsd r (ind rsp)
 
 let convert from_t to_t =
@@ -133,15 +159,15 @@ let convert from_t to_t =
         cvtsi2sdl !%eax !%xmm0 ++
         push_float64 !%xmm0
     | (TLong, TInt) ->
-        pop_int64 rax ++
+        pop_int64 !%rax ++
         movl !%eax !%eax ++
         push_int32 !%eax
     | (TLong, TFloat) ->
-        pop_int64 rax ++
+        pop_int64 !%rax ++
         cvtsi2ssq !%rax !%xmm0 ++
         push_float32 !%xmm0
     | (TLong, TDouble) ->
-        pop_int64 rax ++
+        pop_int64 !%rax ++
         cvtsi2sdq !%rax !%xmm0 ++
         push_float64 !%xmm0
     | (TFloat, TInt) ->
@@ -171,158 +197,157 @@ let convert from_t to_t =
 
 
 let get_var_pos x var_size_bytes =
+    (* TODO *)
     let pos = (Hashtbl.find global_vars x).pos in
     Int64.of_int (var_size_bytes * pos)
 
 (* Expression compilation *)
-let compile_expr =
-    let rec comprec env next = function
-        | ICst i ->
-            let i_64 = {i_value = Int64.of_int32 i; var_type = TInt}in
-            let lbl = Constants.constants_label_i32 in
+let rec compile_expr = function
+    | ICst i ->
+        let i_64 = {i_value = Int64.of_int32 i; var_type = TInt}in
+        let lbl = Constants.constants_label_i32 in
 
-            if not (Hashtbl.mem constants_int i_64) then begin
-                Hashtbl.add constants_int (i_64) {pos = dl_length constants_i32; var_type = TInt; num_bits = T_32bit};
-                dl_push constants_i32 i
-            end;
+        if not (Hashtbl.mem constants_int i_64) then begin
+            Hashtbl.add constants_int (i_64) {pos = dl_length constants_i32; var_type = TInt};
+            dl_push constants_i32 i
+        end;
 
-            let pos = (Hashtbl.find constants_int i_64).pos in
-            let rel_pos = Int64.of_int (4 * pos) in
+        let pos = (Hashtbl.find constants_int i_64).pos in
+        let rel_pos = Int64.of_int (4 * pos) in
 
-            movl (label_ref lbl rel_pos) !%eax ++
-            push_int32 !%eax
-        | LCst i ->
-            let i_64 = {i_value = i; var_type = TLong} in
-            let lbl = Constants.constants_label_i64 in
+        movl (label_ref lbl rel_pos) !%eax ++
+        push_int32 !%eax
+    | LCst i ->
+        let i_64 = {i_value = i; var_type = TLong} in
+        let lbl = Constants.constants_label_i64 in
 
-            if not (Hashtbl.mem constants_int i_64) then begin
-                Hashtbl.add constants_int (i_64) {pos = dl_length constants_i64; var_type = TLong; num_bits = T_64bit};
-                dl_push constants_i64 i
-            end;
+        if not (Hashtbl.mem constants_int i_64) then begin
+            Hashtbl.add constants_int (i_64) {pos = dl_length constants_i64; var_type = TLong};
+            dl_push constants_i64 i
+        end;
 
-            let pos = (Hashtbl.find constants_int i_64).pos in
-            let rel_pos = Int64.of_int (8 * pos) in
+        let pos = (Hashtbl.find constants_int i_64).pos in
+        let rel_pos = Int64.of_int (8 * pos) in
 
-            movq (label_ref lbl rel_pos) !%rax ++
-            push_int64 !%rax
-        | FCst i ->
-            let var = {f_value = i; var_type = TFloat} in
-            let lbl = Constants.constants_label_f32 in
+        movq (label_ref lbl rel_pos) !%rax ++
+        push_int64 !%rax
+    | FCst i ->
+        let var = {f_value = i; var_type = TFloat} in
+        let lbl = Constants.constants_label_f32 in
 
-            if not (Hashtbl.mem constants_float var) then begin
-                Hashtbl.add constants_float (var) {pos = dl_length constants_f32; var_type = TFloat; num_bits = T_32bit};
-                dl_push constants_f32 i
-            end;
+        if not (Hashtbl.mem constants_float var) then begin
+            Hashtbl.add constants_float (var) {pos = dl_length constants_f32; var_type = TFloat};
+            dl_push constants_f32 i
+        end;
 
-            let pos = (Hashtbl.find constants_float var).pos in
-            let rel_pos = Int64.of_int (4 * pos) in
+        let pos = (Hashtbl.find constants_float var).pos in
+        let rel_pos = Int64.of_int (4 * pos) in
 
-            movsd (label_ref lbl rel_pos) !%xmm0 ++
-            push_float32 !%xmm0
-        | DCst i ->
-            let var = {f_value = i; var_type = TDouble} in
-            let lbl = Constants.constants_label_f64 in
+        movsd (label_ref lbl rel_pos) !%xmm0 ++
+        push_float32 !%xmm0
+    | DCst i ->
+        let var = {f_value = i; var_type = TDouble} in
+        let lbl = Constants.constants_label_f64 in
 
-            if not (Hashtbl.mem constants_float var) then begin
-                Hashtbl.add constants_float (var) {pos = dl_length constants_f64; var_type = TDouble; num_bits = T_64bit};
-                dl_push constants_f64 i
-            end;
+        if not (Hashtbl.mem constants_float var) then begin
+            Hashtbl.add constants_float (var) {pos = dl_length constants_f64; var_type = TDouble};
+            dl_push constants_f64 i
+        end;
 
-            let pos = (Hashtbl.find constants_float var).pos in
-            let rel_pos = Int64.of_int (8 * pos) in
+        let pos = (Hashtbl.find constants_float var).pos in
+        let rel_pos = Int64.of_int (8 * pos) in
 
-            movsd (label_ref lbl rel_pos) !%xmm0 ++
-            push_float64 !%xmm0
-        | Var (t, x) ->
-            (
-                match t with
-                | NoType -> raise (VarUndef "Variable with no type! (compile var)")
-                | TInt ->
-                    let lbl = Constants.g_var_label_i32 in
-                    let real_pos = get_var_pos x 4 in
-                    movl (label_ref lbl real_pos) !%eax ++
-                    push_int32 !%eax
-                | TLong ->
-                    let lbl = Constants.g_var_label_i64 in
-                    let real_pos = get_var_pos x 8 in
-                    movq (label_ref lbl real_pos) !%rax ++
-                    push_int64 !%rax
-                | TFloat ->
-                    let lbl = Constants.g_var_label_f32 in
-                    let real_pos = get_var_pos x 4 in
-                    movss (label_ref lbl real_pos) !%xmm0 ++
-                    push_float32 !%xmm0
-                | TDouble ->
-                    let lbl = Constants.g_var_label_f64 in
-                    let real_pos = get_var_pos x 8 in
-                    movsd (label_ref lbl real_pos) !%xmm0 ++
-                    push_float64 !%xmm0
-            )
-        | Binop (t_result, o, t1, e1, t2, e2) -> (
-            comprec env next e1 ++
-            convert t1 t_result ++
-
-            comprec env next e2 ++
-            convert t2 t_result ++
-
-            match t_result with
-            | NoType -> raise (VarUndef "Variable with no type! (compile binop)") (* not supposed to happen *)
+        movsd (label_ref lbl rel_pos) !%xmm0 ++
+        push_float64 !%xmm0
+    | Var (t, x) ->
+        (
+            match t with
+            | NoType -> raise (VarUndef "Variable with no type! (compile var)")
             | TInt ->
-                pop_int32 !%eax ++
-                pop_int32 !%edi ++
-                (
-                    match o with
-                    | Add -> addl !%edi !%eax
-                    | Sub -> subl !%eax !%edi ++
-                            movl !%edi !%eax
-                    | Mul -> imull !%edi !%eax
-                    | Div -> cltd ++
-                            idivl !%ecx
-                ) ++
+                let lbl = Constants.g_var_label_i32 in
+                let real_pos = get_var_pos x 4 in
+                movl (label_ref lbl real_pos) !%eax ++
                 push_int32 !%eax
             | TLong ->
-                pop_int64 rax ++
-                pop_int64 rdi ++
-                (
-                    match o with
-                    | Add -> addq !%rdi !%rax
-                    | Sub -> subq !%rax !%rdi ++
-                            movq !%rdi !%rax
-                    | Mul -> imulq !%rdi !%rax
-                    | Div -> movq !%rax !%rsi ++
-                            movq !%rdi !%rax ++
-                            cqto ++
-                            idivq !%rsi
-                ) ++
+                let lbl = Constants.g_var_label_i64 in
+                let real_pos = get_var_pos x 8 in
+                movq (label_ref lbl real_pos) !%rax ++
                 push_int64 !%rax
             | TFloat ->
-                pop_float32 !%xmm0 ++
-                pop_float32 !%xmm1 ++
-                (
-                    match o with
-                    | Add -> addss !%xmm0 !%xmm1
-                    | Sub -> subss !%xmm0 !%xmm1
-                    | Mul -> mulss !%xmm0 !%xmm1
-                    | Div -> divss !%xmm0 !%xmm1
-                ) ++
-                push_float32 !%xmm1
+                let lbl = Constants.g_var_label_f32 in
+                let real_pos = get_var_pos x 4 in
+                movss (label_ref lbl real_pos) !%xmm0 ++
+                push_float32 !%xmm0
             | TDouble ->
-                pop_float64 !%xmm0 ++
-                pop_float64 !%xmm1 ++
-                (
-                    match o with
-                    | Add -> addsd !%xmm0 !%xmm1
-                    | Sub -> subsd !%xmm0 !%xmm1
-                    | Mul -> mulsd !%xmm0 !%xmm1
-                    | Div -> divsd !%xmm0 !%xmm1
-                ) ++
-                push_float64 !%xmm1
+                let lbl = Constants.g_var_label_f64 in
+                let real_pos = get_var_pos x 8 in
+                movsd (label_ref lbl real_pos) !%xmm0 ++
+                push_float64 !%xmm0
         )
-  in
-  comprec StrMap.empty 0
+    | Binop (t_result, o, t1, e1, t2, e2) -> (
+        compile_expr e1 ++
+        convert t1 t_result ++
+
+        compile_expr e2 ++
+        convert t2 t_result ++
+
+        match t_result with
+        | NoType -> raise (VarUndef "Variable with no type! (compile binop)") (* not supposed to happen *)
+        | TInt ->
+            pop_int32 !%eax ++
+            pop_int32 !%edi ++
+            (
+                match o with
+                | Add -> addl !%edi !%eax
+                | Sub -> subl !%eax !%edi ++
+                        movl !%edi !%eax
+                | Mul -> imull !%edi !%eax
+                | Div -> cltd ++
+                        idivl !%ecx
+            ) ++
+            push_int32 !%eax
+        | TLong ->
+            pop_int64 !%rax ++
+            pop_int64 !%rdi ++
+            (
+                match o with
+                | Add -> addq !%rdi !%rax
+                | Sub -> subq !%rax !%rdi ++
+                        movq !%rdi !%rax
+                | Mul -> imulq !%rdi !%rax
+                | Div -> movq !%rax !%rsi ++
+                        movq !%rdi !%rax ++
+                        cqto ++
+                        idivq !%rsi
+            ) ++
+            push_int64 !%rax
+        | TFloat ->
+            pop_float32 !%xmm0 ++
+            pop_float32 !%xmm1 ++
+            (
+                match o with
+                | Add -> addss !%xmm0 !%xmm1
+                | Sub -> subss !%xmm0 !%xmm1
+                | Mul -> mulss !%xmm0 !%xmm1
+                | Div -> divss !%xmm0 !%xmm1
+            ) ++
+            push_float32 !%xmm1
+        | TDouble ->
+            pop_float64 !%xmm0 ++
+            pop_float64 !%xmm1 ++
+            (
+                match o with
+                | Add -> addsd !%xmm0 !%xmm1
+                | Sub -> subsd !%xmm0 !%xmm1
+                | Mul -> mulsd !%xmm0 !%xmm1
+                | Div -> divsd !%xmm0 !%xmm1
+            ) ++
+            push_float64 !%xmm1
+    )
 
 (* assumes the value to assign is currently at the top of the stack *)
 let assign_var t x =
+    (* TODO *)
     (
         match t with
         | NoType -> raise (VarUndef "Variable with no type (compile Set 2)!") (* not supposed to happen *)
@@ -334,7 +359,7 @@ let assign_var t x =
         | TLong ->
             let lbl = Constants.g_var_label_i64 in
             let real_pos = get_var_pos x 8 in
-            pop_int64 rax ++
+            pop_int64 !%rax ++
             movq !%rax (label_ref lbl real_pos)
         | TFloat ->
             let lbl = Constants.g_var_label_f32 in
@@ -351,10 +376,12 @@ let assign_var t x =
 (* Instruction compilation *)
 let compile_instr = function
     | Set (t1, x, t2, e) ->
+        (* TODO *)
         compile_expr e ++
         convert t2 t1 ++
         assign_var t1 x
     | Assign (x, t, e) ->
+        (* TODO *)
         let var_type = (Hashtbl.find global_vars x).var_type in
         compile_expr e ++
         convert t var_type ++
@@ -367,7 +394,7 @@ let compile_instr = function
             pop_int32 !%edi ++
             call "print_int"
         | TLong ->
-            pop_int64 rdi ++
+            pop_int64 !%rdi ++
             call "print_long"
         | TFloat ->
             (* pxor *)
@@ -376,6 +403,42 @@ let compile_instr = function
         | TDouble ->
             pop_float64 !%xmm0 ++
             call "print_double"
+
+let arg_bytes = function
+    | Arg (t, _) -> type_bytes t
+
+let compile_stmt = function
+    | Function (t, id, args, scope) ->
+        let local_vars_bytes = List.fold_right (fun x curr -> curr + (arg_bytes x)) args 0 in
+        let code = List.map compile_instr scope in
+        let code = List.fold_right (++) code nop in
+
+        (* function init *)
+        label (gen_func_name id) ++
+        pushq !%rbp ++
+        movq !%rsp !%rbp ++
+
+        (* add args *)
+        subq (imm local_vars_bytes) !%rsp ++
+
+        (* scope *)
+        code ++
+
+        (* remove args *)
+        addq (imm local_vars_bytes) !%rsp ++
+
+        (* function end *)
+        popq rbp ++
+        ret
+
+    | Set (t1, x, t2, e) -> nop
+
+let compile_stmt_g_vars = function
+    | Function (t, id, args, scope) -> nop
+    | Set (t1, x, t2, e) ->
+        compile_expr e ++
+        convert t2 t1 ++
+        assign_var t1 x
 
 let infer_type = function
     | ICst i -> TInt
@@ -424,27 +487,26 @@ let rec gen_typing_expr = function
                 let t_result = type_of_binop o t1 t2 in
                 Binop (t_result, o, t1, typed_e1, t2, typed_e2)
 
-let gen_typing = function
+let gen_typing_inst f_id scope = function
     | Set (t1, x, _, e) ->
+        (* TODO *)
         let typed_e = gen_typing_expr e in
         let t2 = infer_type typed_e in
-        if Hashtbl.mem global_vars x then
-            raise (VarDup ("Redefinition of '" ^ x ^ "'."))
+        let curr_func_var = { func = f_id; var = x; scope = scope } in
+        if Hashtbl.mem local_vars curr_func_var then
+            raise (VarDup ("Redefinition of local scope variable'" ^ x ^ "'."))
         else begin
-            match t1 with
-            | NoType -> raise (VarUndef "Variable with no type! (compile Set)") (* not supposed to happen *)
-            | TInt ->
-                    Hashtbl.add global_vars x {pos = g_vars_i32.length; var_type = t1; num_bits = T_32bit};
-                    dl_push g_vars_i32 x
-            | TLong ->
-                    Hashtbl.add global_vars x {pos = g_vars_i64.length; var_type = t1; num_bits = T_64bit};
-                    dl_push g_vars_i64 x
-            | TFloat ->
-                    Hashtbl.add global_vars x {pos = g_vars_f32.length; var_type = t1; num_bits = T_f32bit};
-                    dl_push g_vars_f32 x
-            | TDouble ->
-                    Hashtbl.add global_vars x {pos = g_vars_f64.length; var_type = t1; num_bits = T_f64bit};
-                    dl_push g_vars_f64 x
+            if (Hashtbl.mem func_vars f_id) then begin
+                dl_push (Hashtbl.find func_vars f_id) x;
+            end
+            else begin
+                Hashtbl.add func_vars f_id (dl_create ());
+            end;
+
+            Hashtbl.add local_vars curr_func_var {
+                pos = (Hashtbl.find func_vars f_id).length - 1;
+                var_type = t1;
+            };
         end;
         Set (t1, x, t2, typed_e)
     | Assign (x, _, e) ->
@@ -456,11 +518,89 @@ let gen_typing = function
         let t = infer_type expr_typed in
         Print (t, expr_typed)
 
+let gen_typing = function
+    | Function (t, id, args, scope) ->
+        let typed_scope = List.map (gen_typing_inst id 1) scope in
+        Function (t, id, args, typed_scope)
+    | Set (t1, x, _, e) ->
+        let typed_e = gen_typing_expr e in
+        let t2 = infer_type typed_e in
+        if Hashtbl.mem global_vars x then
+            raise (VarDup ("Redefinition of '" ^ x ^ "'."))
+        else begin
+            match t1 with
+            | NoType -> raise (VarUndef "Variable with no type! (compile Set)") (* not supposed to happen *)
+            | TInt ->
+                    Hashtbl.add global_vars x {pos = g_vars_i32.length; var_type = t1};
+                    dl_push g_vars_i32 x
+            | TLong ->
+                    Hashtbl.add global_vars x {pos = g_vars_i64.length; var_type = t1};
+                    dl_push g_vars_i64 x
+            | TFloat ->
+                    Hashtbl.add global_vars x {pos = g_vars_f32.length; var_type = t1};
+                    dl_push g_vars_f32 x
+            | TDouble ->
+                    Hashtbl.add global_vars x {pos = g_vars_f64.length; var_type = t1};
+                    dl_push g_vars_f64 x
+        end;
+        Set (t1, x, t2, typed_e)
+
+(* let setup_local_vars_inst f_id = function *)
+(*     | Set (t1, x, t2, e) -> () *)
+(*     | Assign (x, t, e) -> () *)
+(*     | Print (t, e) -> () *)
+(**)
+(* let setup_local_vars = function *)
+(*     | Function (t, id, args, scope) -> List.iter (setup_local_vars_inst id) scope *)
+(*     | Set (t1, x, _, e) -> () *)
+
+let helper_functions = 
+    label "print_int" ++
+    pushq !%rbp ++ (* makes sure, in particular, of alignment issues *)
+    movq !%rsp !%rbp ++
+    movq !%rdi !%rsi ++
+    leaq (lab ".Sprint_int") rdi ++
+    movq (imm 0) !%rax ++
+    call "printf" ++
+    popq rbp ++
+    ret ++
+
+    label "print_long" ++
+    pushq !%rbp ++ (* makes sure, in particular, of alignment issues *)
+    movq !%rsp !%rbp ++
+    movq !%rdi !%rsi ++
+    leaq (lab ".Sprint_long") rdi ++
+    movq (imm 0) !%rax ++
+    call "printf" ++
+    popq rbp ++
+    ret ++
+
+    label "print_float" ++
+    pushq !%rbp ++ (* makes sure, in particular, of alignment issues *)
+    movq !%rsp !%rbp ++
+    cvtss2sd !%xmm0 !%xmm0 ++
+    leaq (lab ".Sprint_float") rdi ++
+    movq (imm 1) !%rax ++
+    call "printf" ++
+    popq rbp ++
+    ret ++
+
+    label "print_double" ++
+    pushq !%rbp ++ (* makes sure, in particular, of alignment issues *)
+    movq !%rsp !%rbp ++
+    leaq (lab ".Sprint_double") rdi ++
+    movq (imm 1) !%rax ++
+    call "printf" ++
+    popq rbp ++
+    ret
+
 (* Compiles program p and saves to file ofile *)
-let compile_program p ofile =
+let compile_program (p: Ast.program) ofile =
     let p = List.map gen_typing p in (* generate typing *)
-    (* List.iter get_number_vars p; *)
-    let code = List.map compile_instr p in
+    (* List.iter setup_local_vars p; *)
+    let g_vars_code = List.map compile_stmt_g_vars p in
+    let g_vars_code = List.fold_right (++) g_vars_code nop in
+    let code = List.map compile_stmt p in
     let code = List.fold_right (++) code nop in
     if !frame_size mod 16 = 8 then frame_size := 8 + !frame_size;
     let p =
@@ -472,57 +612,22 @@ let compile_program p ofile =
                 pushq !%rbp ++
                 movq !%rsp !%rbp ++
 
-                (* code *)
-                code ++
+                (* global vars code *)
+                g_vars_code ++
 
-                (* remove global variables *)
-                (* Hashtbl.fold (fun _ _ acc -> acc ++ popq rax) global_vars nop ++ *)
+                (* call main function *)
+                call (gen_func_name Constants.main_func_name) ++
 
                 (* ending sequence *)
                 popq rbp ++
                 movq (imm 0) !%rax ++
                 ret ++
 
+                (* code *)
+                code ++
+
                 (* helper functions *)
-
-                label "print_int" ++
-                pushq !%rbp ++ (* makes sure, in particular, of alignment issues *)
-                movq !%rsp !%rbp ++
-                movq !%rdi !%rsi ++
-                leaq (lab ".Sprint_int") rdi ++
-                movq (imm 0) !%rax ++
-                call "printf" ++
-                popq rbp ++
-                ret ++
-
-                label "print_long" ++
-                pushq !%rbp ++ (* makes sure, in particular, of alignment issues *)
-                movq !%rsp !%rbp ++
-                movq !%rdi !%rsi ++
-                leaq (lab ".Sprint_long") rdi ++
-                movq (imm 0) !%rax ++
-                call "printf" ++
-                popq rbp ++
-                ret ++
-
-                label "print_float" ++
-                pushq !%rbp ++ (* makes sure, in particular, of alignment issues *)
-                movq !%rsp !%rbp ++
-                cvtss2sd !%xmm0 !%xmm0 ++
-                leaq (lab ".Sprint_float") rdi ++
-                movq (imm 1) !%rax ++
-                call "printf" ++
-                popq rbp ++
-                ret ++
-
-                label "print_double" ++
-                pushq !%rbp ++ (* makes sure, in particular, of alignment issues *)
-                movq !%rsp !%rbp ++
-                leaq (lab ".Sprint_double") rdi ++
-                movq (imm 1) !%rax ++
-                call "printf" ++
-                popq rbp ++
-                ret;
+                helper_functions;
 
             data = 
                 label ".Sprint_int" ++
@@ -564,10 +669,6 @@ let compile_program p ofile =
                 dfloat (List.init g_vars_f32.length (fun _ -> 0.0)) ++
                 label Constants.g_var_label_f64 ++
                 ddouble (List.init g_vars_f64.length (fun _ -> 0.0))
-
-
-                (* Hashtbl.fold (fun x _ l -> label x ++ dquad [1] ++ l) global_vars *)
-                (*   (label ".Sprint_int" ++ string "%d\n") *)
     }
     in
     let f = open_out ofile in

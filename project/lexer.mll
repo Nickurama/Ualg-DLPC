@@ -10,7 +10,8 @@
         "int", TYPE TInt;
         "long", TYPE TLong;
         "float", TYPE TFloat;
-        "double", TYPE TDouble
+        "double", TYPE TDouble;
+        "void", TYPE NoType
     ]
     let id_or_kwd s = try List.assoc s kwd_tbl with _ -> IDENT s
 }
@@ -31,9 +32,12 @@ rule token = parse
   | '*'     { TIMES }
   | '/'     { DIV }
   | '='     { EQ }
+  | '{'     { LB }
+  | '}'     { RB }
   | '('     { LP }
   | ')'     { RP }
   | ';'     { END_INST }
+  | ','     { COMMA }
   | integer as s { ICST (Int32.of_string s) }
   | integer 'l' as s {
       let len = String.length s in

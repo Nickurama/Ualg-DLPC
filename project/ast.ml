@@ -4,6 +4,16 @@
 type program = stmt list
 
 and stmt =
+    | Function of ty * string * arg list * scope
+    | Set of ty * string * ty * expr
+
+and arg =
+    | Arg of ty * string
+
+and scope = inst list
+    (* | Scope of inst list *)
+
+and inst =
     | Set of ty * string * ty * expr
     | Assign of string * ty * expr
     | Print of ty * expr

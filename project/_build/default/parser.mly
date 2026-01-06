@@ -13,8 +13,10 @@
 %token <Ast.ty> TYPE
 %token PRINT
 %token END_INST
+%token COMMA
 %token EOF
 %token LP RP
+%token LB RB
 %token PLUS MINUS TIMES DIV
 %token EQ
 
@@ -43,9 +45,33 @@ stmts:
 ;
 
 stmt:
-| TYPE id = IDENT EQ e = expr END_INST      { Set ($1, id, NoType, e) }
-| id = IDENT EQ e = expr END_INST           { Assign (id, NoType, e) }
-| PRINT LP e = expr RP END_INST             { Print (NoType, e) }
+| t = TYPE id = IDENT EQ e = expr END_INST      { Set (t, id, NoType, e) }
+| t = TYPE id = IDENT LP a = args RP sc = scope { Function (t, id, List.rev a, sc)}
+;
+
+args:
+|                               { [] }
+| a = arg                       { [a] }
+| ars = args COMMA a = arg      { a :: ars }
+;
+
+arg:
+| t = TYPE id = IDENT           { Arg (t, id) }
+;
+
+scope:
+| LB i = insts RB               { List.rev i }
+;
+
+insts:
+| i = inst END_INST                     { [i] }
+| l = insts i = inst END_INST           { i :: l }
+;
+
+inst:
+| t = TYPE id = IDENT EQ e = expr               { Set (t, id, NoType, e) }
+| id = IDENT EQ e = expr                        { Assign (id, NoType, e) }
+| PRINT LP e = expr RP                          { Print (NoType, e) }
 ;
 
 expr:
