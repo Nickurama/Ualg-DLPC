@@ -56,6 +56,11 @@ type typed_var = {
     scope: int;
 }
 
+type var_nature =
+    | Local
+    | Argument
+    | Global
+
 type i_var = {
     i_value: int64;
     v_type: ty;
@@ -203,7 +208,7 @@ let convert from_t to_t =
         push_float32 !%xmm0
 
 
-let find_highest_scope_matching_var f_id var_id map max_scope =
+let find_highest_scope_matching_var_for_map f_id var_id map max_scope =
     let dummy_var = { id = ""; var_type = NoType; scope = -1 } in
     if (Hashtbl.mem map f_id) then begin
         let f_vars = !((Hashtbl.find map f_id).items) in
@@ -215,19 +220,56 @@ let find_highest_scope_matching_var f_id var_id map max_scope =
     else dummy_var
 
 let find_highest_scope_matching_var f_id var_id scope =
-    let vars_highest_matching = find_highest_scope_matching_var f_id var_id func_vars scope in
-    let args_highest_matching = find_highest_scope_matching_var f_id var_id func_args scope in
+    let vars_highest_matching = find_highest_scope_matching_var_for_map f_id var_id func_vars scope in
+    let args_highest_matching = find_highest_scope_matching_var_for_map f_id var_id func_args scope in
 
     if (vars_highest_matching.scope > args_highest_matching.scope ) then vars_highest_matching
     else args_highest_matching
 
-let get_var_pos f_id scope var_id var_size_bytes =
-    let vars_highest_matching = find_highest_scope_matching_var f_id var_id func_vars scope in
-    let args_highest_matching = find_highest_scope_matching_var f_id var_id func_args scope in
+let get_bytes_until_local_var f_id var_id =
+    let l_vars = !((Hashtbl.find func_vars f_id).items) in
+    let local_var_type = ref NoType in
+    let previous_vars = List.fold_left (
+        fun acc x -> match acc with
+        | [] -> [x]
+        | head :: tail -> if head = x then (local_var_type := x.var_type; acc) else x :: acc
+    ) [] l_vars in
+    (List.fold_right (fun x acc -> acc + (type_bytes x.var_type)) previous_vars 0) - (type_bytes !local_var_type)
 
-    (* TODO *)
-    let pos = (Hashtbl.find global_vars var_id).pos in
-    Int64.of_int (var_size_bytes * pos)
+let get_bytes_after_arg_var f_id var_id =
+    let l_vars = !((Hashtbl.find func_args f_id).items) in
+    let local_var_type = ref NoType in
+    let following_vars = List.fold_right (
+        fun x acc -> match acc with
+        | [] -> [x]
+        | head :: tail -> if head = x then (local_var_type := x.var_type; acc) else x :: acc
+    ) l_vars [] in
+    (List.fold_right (fun x acc -> acc + (type_bytes x.var_type)) following_vars 0) - (type_bytes !local_var_type)
+
+let get_var_nature f_id scope var_id =
+    let vars_highest_matching = find_highest_scope_matching_var_for_map f_id var_id func_vars scope in
+    let args_highest_matching = find_highest_scope_matching_var_for_map f_id var_id func_args scope in
+
+    if vars_highest_matching.scope >= 0 then
+        Local
+    else if args_highest_matching.scope >= 0 then
+        Argument
+    else if Hashtbl.mem global_vars var_id then
+        Global
+    else
+        raise (VarUndef ("Variable '" ^ var_id ^ "' doesn't exist!?"))
+
+let get_var_pos f_id scope var_id var_t =
+    let curr_var_nature = get_var_nature f_id scope var_id in
+    match curr_var_nature with
+    | Local ->
+        Int64.of_int (get_bytes_until_local_var f_id var_id)
+    | Argument ->
+        Int64.of_int ((get_bytes_after_arg_var f_id var_id) - 8)
+    | Global ->
+        let pos = (Hashtbl.find global_vars var_id).pos in
+        Int64.of_int ((type_bytes var_t) * pos)
+
 
 (* Expression compilation *)
 let rec compile_expr (f_id: string) (scope: int) = function
@@ -294,22 +336,22 @@ let rec compile_expr (f_id: string) (scope: int) = function
             | NoType -> raise (VarUndef "Variable with no type! (compile var)")
             | TInt ->
                 let lbl = Constants.g_var_label_i32 in
-                let real_pos = get_var_pos x 4 in
+                let real_pos = get_var_pos f_id scope x t in
                 movl (label_ref lbl real_pos) !%eax ++
                 push_int32 !%eax
             | TLong ->
                 let lbl = Constants.g_var_label_i64 in
-                let real_pos = get_var_pos x 8 in
+                let real_pos = get_var_pos f_id scope x t in
                 movq (label_ref lbl real_pos) !%rax ++
                 push_int64 !%rax
             | TFloat ->
                 let lbl = Constants.g_var_label_f32 in
-                let real_pos = get_var_pos x 4 in
+                let real_pos = get_var_pos f_id scope x t in
                 movss (label_ref lbl real_pos) !%xmm0 ++
                 push_float32 !%xmm0
             | TDouble ->
                 let lbl = Constants.g_var_label_f64 in
-                let real_pos = get_var_pos x 8 in
+                let real_pos = get_var_pos f_id scope x t in
                 movsd (label_ref lbl real_pos) !%xmm0 ++
                 push_float64 !%xmm0
         )
@@ -374,32 +416,37 @@ let rec compile_expr (f_id: string) (scope: int) = function
             push_float64 !%xmm1
     )
 
+let move_to_based_on_nature lbl real_pos = function
+    | Local -> (ind64 ~ofs:(Int64.neg real_pos) rbp)
+    | Argument -> (ind64 ~ofs:(real_pos) rbp)
+    | Global -> (label_ref lbl real_pos)
+
 (* assumes the value to assign is currently at the top of the stack *)
-let assign_var t x =
-    (* TODO *)
+let assign_var f_id scope t x =
+    let v_nature = get_var_nature f_id scope x in
     (
         match t with
         | NoType -> raise (VarUndef "Variable with no type (compile Set 2)!") (* not supposed to happen *)
         | TInt ->
             let lbl = Constants.g_var_label_i32 in
-            let real_pos = get_var_pos x 4 in
+            let real_pos = get_var_pos f_id scope x t in
             pop_int32 !%eax ++
-            movl !%eax (label_ref lbl real_pos)
+            movl !%eax (move_to_based_on_nature lbl real_pos v_nature)
         | TLong ->
             let lbl = Constants.g_var_label_i64 in
-            let real_pos = get_var_pos x 8 in
+            let real_pos = get_var_pos f_id scope x t in
             pop_int64 !%rax ++
-            movq !%rax (label_ref lbl real_pos)
+            movq !%rax (move_to_based_on_nature lbl real_pos v_nature)
         | TFloat ->
             let lbl = Constants.g_var_label_f32 in
-            let real_pos = get_var_pos x 4 in
+            let real_pos = get_var_pos f_id scope x t in
             pop_float32 !%xmm0 ++
-            movss !%xmm0 (label_ref lbl real_pos)
+            movss !%xmm0 (move_to_based_on_nature lbl real_pos v_nature)
         | TDouble ->
             let lbl = Constants.g_var_label_f64 in
-            let real_pos = get_var_pos x 8 in
+            let real_pos = get_var_pos f_id scope x t in
             pop_float64 !%xmm0 ++
-            movsd !%xmm0 (label_ref lbl real_pos)
+            movsd !%xmm0 (move_to_based_on_nature lbl real_pos v_nature)
     )
 
 (* Instruction compilation *)
@@ -407,14 +454,14 @@ let compile_instr f_id scope = function
     | Set (t1, x, t2, e) ->
         (* TODO *)
         compile_expr f_id scope e ++
-        convert t2 t1
-        (* assign_var_f t1 x *)
+        convert t2 t1 ++
+        assign_var f_id scope t1 x
     | Assign (x, t, e) ->
         (* TODO *)
         let var_type = (Hashtbl.find global_vars x).var_type in
         compile_expr f_id scope e ++
-        convert t var_type
-        (* assign_var_f var_type x *)
+        convert t var_type ++
+        assign_var f_id scope var_type x
     | Print (t, e) ->
         compile_expr f_id scope e ++
         match t with

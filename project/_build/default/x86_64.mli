@@ -152,6 +152,8 @@ val (!%): 'size register -> 'size operand
   (** register *)
 val ind: ?ofs:int -> ?index:'size1 register -> ?scale:int ->
   'size2 register -> [>] operand
+val ind64: ?ofs:int64 -> ?index:'size1 register -> ?scale:int ->
+  'size2 register -> [>] operand
   (** indirect operande ofs(register, index, scale) *)
 val lab: label -> [>] operand
   (** label L  *)

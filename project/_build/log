@@ -1,4 +1,4 @@
-# dune exec ./arithc.exe test.minic
+# dune build arithc.exe
 # OCAMLPARAM: unset
 # Shared cache: enabled-except-user-rules
 # Shared cache location: /home/luna/.cache/dune/db
@@ -13,4 +13,12 @@
 #  ; build_dir = In_build_dir "default"
 #  ; instrument_with = []
 #  }
-$ /home/luna/.opam/default/bin/ocamlc.opt -config > /tmp/dune_85cc22_output
+$ /home/luna/.opam/default/bin/ocamlc.opt -config > /tmp/dune_dbb4aa_output
+$ (cd _build/default && /home/luna/.opam/default/bin/ocamldep.opt -modules -impl compile.ml) > _build/default/.arithc.eobjs/compile.impl.d
+$ (cd _build/default && /home/luna/.opam/default/bin/ocamlopt.opt -g -I .arithc.eobjs/byte -I .arithc.eobjs/native -cmi-file .arithc.eobjs/byte/compile.cmi -no-alias-deps -opaque -o .arithc.eobjs/native/compile.cmx -c -impl compile.ml)
+> File "compile.ml", line 519, characters 19-21:
+> 519 |         assign_var t1 x
+>                          ^^
+> Error: The value t1 has type Ast.ty but an expression was expected of type
+>          string
+[2]
