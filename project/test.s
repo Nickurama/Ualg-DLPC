@@ -58,9 +58,6 @@ main:
 	addsd %xmm0, %xmm1
 	subq $8, %rsp
 	movsd %xmm1, 0(%rsp)
-	movsd 0(%rsp), %xmm0
-	addq $8, %rsp
-	movsd %xmm0, .gvar_f64+0(%rip)
 	movsd .gvar_f64+0(%rip), %xmm0
 	subq $8, %rsp
 	movsd %xmm0, 0(%rsp)

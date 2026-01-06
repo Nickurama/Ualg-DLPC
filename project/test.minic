@@ -1,10 +1,13 @@
 double x = 3;
 double y = 5;
 
-void main()
+void main(int a)
 {
+	print(a);
 	print(x);
 	print(y);
+	float z = 3;
+	print(z);
 	x = x + y;
 	print(x);
 	print(y);

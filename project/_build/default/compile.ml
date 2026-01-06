@@ -50,14 +50,20 @@ type func_var = {
     scope: int;
 }
 
+type typed_var = {
+    id: string;
+    var_type: ty;
+    scope: int;
+}
+
 type i_var = {
     i_value: int64;
-    var_type: ty;
+    v_type: ty;
 }
 
 type f_var = {
     f_value: float;
-    var_type: ty;
+    v_type: ty;
 }
 
 (* Global variables *)
@@ -87,7 +93,8 @@ let (func_var_num : (string, int) Hashtbl.t) = Hashtbl.create 17
 
 (* local variables *)
 let (local_vars: (func_var, var_info) Hashtbl.t) = Hashtbl.create 17 (* string -> pos, type, bits *)
-let (func_vars: (string, string dyn_list) Hashtbl.t) = Hashtbl.create 17 (* string -> pos, type, bits *)
+let (func_vars: (string, typed_var dyn_list) Hashtbl.t) = Hashtbl.create 17 (* string -> pos, type, bits *)
+let (func_args: (string, typed_var dyn_list) Hashtbl.t) = Hashtbl.create 17 (* string -> pos, type, bits *)
 
 let gen_func_name x =
     ".f_" ^ x
@@ -196,6 +203,24 @@ let convert from_t to_t =
         push_float32 !%xmm0
 
 
+let find_highest_scope_matching_var f_id var_id map max_scope =
+    let dummy_var = { id = ""; var_type = NoType; scope = -1 } in
+    if (Hashtbl.mem map f_id) then begin
+        let f_vars = !((Hashtbl.find map f_id).items) in
+        let matches = List.fold_right (fun x acc -> if x.id = var_id then x :: acc else acc) f_vars [] in
+        List.fold_right (
+            fun x acc -> if x.scope > acc.scope && x.scope <= max_scope then x else acc
+        ) matches dummy_var
+    end
+    else dummy_var
+
+let find_highest_scope_matching_var f_id var_id scope =
+    let vars_highest_matching = find_highest_scope_matching_var f_id var_id func_vars scope in
+    let args_highest_matching = find_highest_scope_matching_var f_id var_id func_args scope in
+
+    if (vars_highest_matching.scope > args_highest_matching.scope ) then vars_highest_matching
+    else args_highest_matching
+
 let get_var_pos x var_size_bytes =
     (* TODO *)
     let pos = (Hashtbl.find global_vars x).pos in
@@ -204,7 +229,7 @@ let get_var_pos x var_size_bytes =
 (* Expression compilation *)
 let rec compile_expr = function
     | ICst i ->
-        let i_64 = {i_value = Int64.of_int32 i; var_type = TInt}in
+        let i_64 = {i_value = Int64.of_int32 i; v_type = TInt}in
         let lbl = Constants.constants_label_i32 in
 
         if not (Hashtbl.mem constants_int i_64) then begin
@@ -218,7 +243,7 @@ let rec compile_expr = function
         movl (label_ref lbl rel_pos) !%eax ++
         push_int32 !%eax
     | LCst i ->
-        let i_64 = {i_value = i; var_type = TLong} in
+        let i_64 = {i_value = i; v_type = TLong} in
         let lbl = Constants.constants_label_i64 in
 
         if not (Hashtbl.mem constants_int i_64) then begin
@@ -232,7 +257,7 @@ let rec compile_expr = function
         movq (label_ref lbl rel_pos) !%rax ++
         push_int64 !%rax
     | FCst i ->
-        let var = {f_value = i; var_type = TFloat} in
+        let var = {f_value = i; v_type = TFloat} in
         let lbl = Constants.constants_label_f32 in
 
         if not (Hashtbl.mem constants_float var) then begin
@@ -246,7 +271,7 @@ let rec compile_expr = function
         movsd (label_ref lbl rel_pos) !%xmm0 ++
         push_float32 !%xmm0
     | DCst i ->
-        let var = {f_value = i; var_type = TDouble} in
+        let var = {f_value = i; v_type = TDouble} in
         let lbl = Constants.constants_label_f64 in
 
         if not (Hashtbl.mem constants_float var) then begin
@@ -378,14 +403,14 @@ let compile_instr = function
     | Set (t1, x, t2, e) ->
         (* TODO *)
         compile_expr e ++
-        convert t2 t1 ++
-        assign_var t1 x
+        convert t2 t1
+        (* assign_var_f t1 x *)
     | Assign (x, t, e) ->
         (* TODO *)
         let var_type = (Hashtbl.find global_vars x).var_type in
         compile_expr e ++
-        convert t var_type ++
-        assign_var var_type x
+        convert t var_type
+        (* assign_var_f var_type x *)
     | Print (t, e) ->
         compile_expr e ++
         match t with
@@ -409,7 +434,8 @@ let arg_bytes = function
 
 let compile_stmt = function
     | Function (t, id, args, scope) ->
-        let local_vars_bytes = List.fold_right (fun x curr -> curr + (arg_bytes x)) args 0 in
+        let f_local_vars = if Hashtbl.mem func_vars id then !((Hashtbl.find func_vars id).items) else [] in
+        let f_local_vars_bytes = List.fold_right (fun x acc -> acc + (type_bytes x.var_type)) f_local_vars 0 in
         let code = List.map compile_instr scope in
         let code = List.fold_right (++) code nop in
 
@@ -419,13 +445,13 @@ let compile_stmt = function
         movq !%rsp !%rbp ++
 
         (* add args *)
-        subq (imm local_vars_bytes) !%rsp ++
+        subq (imm f_local_vars_bytes) !%rsp ++
 
         (* scope *)
         code ++
 
         (* remove args *)
-        addq (imm local_vars_bytes) !%rsp ++
+        addq (imm f_local_vars_bytes) !%rsp ++
 
         (* function end *)
         popq rbp ++
@@ -462,24 +488,27 @@ let type_of_binop o t1 t2 =
         | (TFloat, TDouble) | (TDouble, TFloat) -> TDouble
         | (TDouble, TDouble) -> TDouble
 
-let get_var_type = function x ->
-    if not (Hashtbl.mem global_vars x) then
-        raise (VarUndef ("Variable '" ^ x ^ "' not found."))
+let get_var_type f_id scope var_id =
+    let highest_scope_local_var = find_highest_scope_matching_var f_id var_id scope in
+    if highest_scope_local_var.scope >= 0 then
+        highest_scope_local_var.var_type
+    else if not (Hashtbl.mem global_vars var_id) then
+        raise (VarUndef ("Variable '" ^ var_id ^ "' not found."))
     else
-        (Hashtbl.find global_vars x).var_type
+        (Hashtbl.find global_vars var_id).var_type
 
-let rec gen_typing_expr = function
+let rec gen_typing_expr f_id scope = function
         | ICst i -> ICst (i)
         | LCst i -> LCst (i)
         | FCst i -> FCst (i)
         | DCst i -> DCst (i)
         | Var (t, x) ->
-            let actual_t = get_var_type x in
+            let actual_t = get_var_type f_id scope x in
             Var (actual_t, x)
         | Binop (_, o, _, e1, _, e2) ->
 
-                let typed_e1 = gen_typing_expr e1 in
-                let typed_e2 = gen_typing_expr e2 in
+                let typed_e1 = gen_typing_expr f_id scope e1 in
+                let typed_e2 = gen_typing_expr f_id scope e2 in
 
                 let t1 = infer_type typed_e1 in
                 let t2 = infer_type typed_e2 in
@@ -489,18 +518,18 @@ let rec gen_typing_expr = function
 
 let gen_typing_inst f_id scope = function
     | Set (t1, x, _, e) ->
-        (* TODO *)
-        let typed_e = gen_typing_expr e in
+        let typed_e = gen_typing_expr f_id scope e in
         let t2 = infer_type typed_e in
         let curr_func_var = { func = f_id; var = x; scope = scope } in
         if Hashtbl.mem local_vars curr_func_var then
             raise (VarDup ("Redefinition of local scope variable'" ^ x ^ "'."))
         else begin
             if (Hashtbl.mem func_vars f_id) then begin
-                dl_push (Hashtbl.find func_vars f_id) x;
+                dl_push (Hashtbl.find func_vars f_id) {id = x; var_type = t1; scope = scope};
             end
             else begin
                 Hashtbl.add func_vars f_id (dl_create ());
+                dl_push (Hashtbl.find func_vars f_id) {id = x; var_type = t1; scope = scope};
             end;
 
             Hashtbl.add local_vars curr_func_var {
@@ -510,20 +539,48 @@ let gen_typing_inst f_id scope = function
         end;
         Set (t1, x, t2, typed_e)
     | Assign (x, _, e) ->
-        let expr_typed = gen_typing_expr e in
+        let expr_typed = gen_typing_expr f_id scope e in
         let t = infer_type expr_typed in
+        let highest_local_matching_var = find_highest_scope_matching_var f_id x scope in
+        let local_var_exists = highest_local_matching_var.scope >= 0 in
+        let global_var_exists = Hashtbl.mem global_vars x in
+        if not local_var_exists && not global_var_exists then
+            raise (VarUndef ("Variable '" ^ x ^ "' not defined"));
         Assign (x, t, expr_typed)
     | Print (_, e) ->
-        let expr_typed = gen_typing_expr e in
+        let expr_typed = gen_typing_expr f_id scope e in
         let t = infer_type expr_typed in
         Print (t, expr_typed)
 
+let process_arg f_id = function
+    | Arg (t, id) ->
+        let arg_var = { func = f_id; var = id; scope = 1 } in
+        let arg_typed_var = { id = id; var_type = t; scope = 1 } in
+        if Hashtbl.mem local_vars arg_var then
+            raise (VarDup ("Redefinition of argument variable'" ^ id ^ "'."))
+        else begin
+            if (Hashtbl.mem func_args f_id) then begin
+                dl_push (Hashtbl.find func_args f_id) arg_typed_var;
+            end
+            else begin
+                Hashtbl.add func_args f_id (dl_create ());
+                dl_push (Hashtbl.find func_args f_id) arg_typed_var;
+            end;
+
+            Hashtbl.add local_vars arg_var {
+                pos = - (Hashtbl.find func_args f_id).length;
+                var_type = t;
+            };
+        end
+
+
 let gen_typing = function
     | Function (t, id, args, scope) ->
+        List.iter (process_arg id) args;
         let typed_scope = List.map (gen_typing_inst id 1) scope in
         Function (t, id, args, typed_scope)
     | Set (t1, x, _, e) ->
-        let typed_e = gen_typing_expr e in
+        let typed_e = gen_typing_expr "" 0 e in
         let t2 = infer_type typed_e in
         if Hashtbl.mem global_vars x then
             raise (VarDup ("Redefinition of '" ^ x ^ "'."))
