@@ -5,6 +5,7 @@ type program = stmt list
 
 and stmt =
     | Set of ty * string * ty * expr
+    | Assign of string * ty * expr
     | Print of ty * expr
 
 and expr =

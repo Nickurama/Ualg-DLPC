@@ -1,4 +1,6 @@
-float x = 2147483647 + 1l;
+int x = 3;
+print(x);
+x = x + 3;
 print(x);
 
 # long -> int failling

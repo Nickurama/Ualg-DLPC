@@ -5,7 +5,7 @@ all: test.s test.out
 arithc.exe:
 	dune build arithc.exe
 
-%.s: %.exp arithc.exe
+%.s: %.minic arithc.exe
 	dune exec ./arithc.exe $<
 
 %.out: %.s

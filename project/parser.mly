@@ -43,7 +43,8 @@ stmts:
 ;
 
 stmt:
-| TYPE id = IDENT EQ e = expr END_INST { Set ($1, id, NoType, e) }
+| TYPE id = IDENT EQ e = expr END_INST      { Set ($1, id, NoType, e) }
+| id = IDENT EQ e = expr END_INST           { Assign (id, NoType, e) }
 | PRINT LP e = expr RP END_INST             { Print (NoType, e) }
 ;
 

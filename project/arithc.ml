@@ -20,7 +20,7 @@ let options =
    "-o", Arg.String (set_file ofile),
    "<file>  output file name"]
 
-let usage = "usage: arithc [option] file.exp"
+let usage = "usage: arithc [option] file.minic"
 
 (* localisar um erro mostrando linha e colun *)
 let localisation pos =
@@ -35,16 +35,16 @@ let () =
   (* Verifica-se que o nome do ficheiro de saída foi forneceido *)
   if !ifile="" then begin eprintf "No file to compile!\n@?"; exit 1 end;
 
-  (* Este ficheiro tem de ter cono extensão .exp *)
-  if not (Filename.check_suffix !ifile ".exp") then begin
-    eprintf "The input file should end with .exp\n@?";
+  (* Este ficheiro tem de ter cono extensão .minic *)
+  if not (Filename.check_suffix !ifile ".minic") then begin
+    eprintf "The input file should end with .minic\n@?";
     Arg.usage options usage;
     exit 1
   end;
 
   (* Por omissão, o ficheiro target partilha o nome do ficheiro fonte,
    exeptuando a extensão *)
-  if !ofile="" then ofile := Filename.chop_suffix !ifile ".exp" ^ ".s";
+  if !ofile="" then ofile := Filename.chop_suffix !ifile ".minic" ^ ".s";
 
   (* Abertura do ficheiro em modo leitura *)
   let f = open_in !ifile in

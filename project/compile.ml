@@ -83,13 +83,6 @@ let (func_var_num : (string, int) Hashtbl.t) = Hashtbl.create 17
    relativamente a %rbp (em bytes) *)
 module StrMap = Map.Make(String)
 
-let is_int = function
-    | NoType -> false
-    | TInt -> true
-    | TLong -> true
-    | TFloat -> false
-    | TDouble -> false
-
 let pop_int32 r =
     movl (ind rsp) r ++
     addq (imm 4) !%rsp
@@ -324,35 +317,44 @@ let compile_expr =
   in
   comprec StrMap.empty 0
 
+(* assumes the value to assign is currently at the top of the stack *)
+let assign_var t x =
+    (
+        match t with
+        | NoType -> raise (VarUndef "Variable with no type (compile Set 2)!") (* not supposed to happen *)
+        | TInt ->
+            let lbl = Constants.g_var_label_i32 in
+            let pos = Int64.of_int (Hashtbl.find global_vars x).pos in
+            pop_int32 !%eax ++
+            movl !%eax (label_ref lbl pos)
+        | TLong ->
+            let lbl = Constants.g_var_label_i64 in
+            let pos = Int64.of_int (Hashtbl.find global_vars x).pos in
+            pop_int64 rax ++
+            movq !%rax (label_ref lbl pos)
+        | TFloat ->
+            let lbl = Constants.g_var_label_f32 in
+            let pos = Int64.of_int (Hashtbl.find global_vars x).pos in
+            pop_float32 !%xmm0 ++
+            movss !%xmm0 (label_ref lbl pos)
+        | TDouble ->
+            let lbl = Constants.g_var_label_f64 in
+            let pos = Int64.of_int (Hashtbl.find global_vars x).pos in
+            pop_float64 !%xmm0 ++
+            movsd !%xmm0 (label_ref lbl pos)
+    )
+
 (* Instruction compilation *)
 let compile_instr = function
     | Set (t1, x, t2, e) ->
         compile_expr e ++
         convert t2 t1 ++
-        (
-            match t1 with
-            | NoType -> raise (VarUndef "Variable with no type (compile Set 2)!") (* not supposed to happen *)
-            | TInt ->
-                let lbl = Constants.g_var_label_i32 in
-                let pos = Int64.of_int (Hashtbl.find global_vars x).pos in
-                pop_int32 !%eax ++
-                movl !%eax (label_ref lbl pos)
-            | TLong ->
-                let lbl = Constants.g_var_label_i64 in
-                let pos = Int64.of_int (Hashtbl.find global_vars x).pos in
-                pop_int64 rax ++
-                movq !%rax (label_ref lbl pos)
-            | TFloat ->
-                let lbl = Constants.g_var_label_f32 in
-                let pos = Int64.of_int (Hashtbl.find global_vars x).pos in
-                pop_float32 !%xmm0 ++
-                movss !%xmm0 (label_ref lbl pos)
-            | TDouble ->
-                let lbl = Constants.g_var_label_f64 in
-                let pos = Int64.of_int (Hashtbl.find global_vars x).pos in
-                pop_float64 !%xmm0 ++
-                movsd !%xmm0 (label_ref lbl pos)
-        )
+        assign_var t1 x
+    | Assign (x, t, e) ->
+        let var_type = (Hashtbl.find global_vars x).var_type in
+        compile_expr e ++
+        convert t var_type ++
+        assign_var var_type x
     | Print (t, e) ->
         compile_expr e ++
         match t with
@@ -441,6 +443,10 @@ let gen_typing = function
                     dl_push g_vars_f64 x
         end;
         Set (t1, x, t2, typed_e)
+    | Assign (x, _, e) ->
+        let expr_typed = gen_typing_expr e in
+        let t = infer_type expr_typed in
+        Assign (x, t, expr_typed)
     | Print (_, e) ->
         let expr_typed = gen_typing_expr e in
         let t = infer_type expr_typed in
