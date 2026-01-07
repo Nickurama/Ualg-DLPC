@@ -67,6 +67,7 @@ expr_list:
 ;
 
 scope:
+| LB RB                         { [] }
 | LB i = insts RB               { List.rev i }
 ;
 

@@ -11,7 +11,6 @@ and arg =
     | Arg of ty * string
 
 and scope = inst list
-    (* | Scope of inst list *)
 
 and inst =
     | Set of ty * string * ty * expr

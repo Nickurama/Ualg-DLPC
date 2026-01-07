@@ -6,12 +6,17 @@ int funcuwu(int a)
 	return x;
 }
 
-int func_owo(float x)
+int func_owo(double x)
 {
 	return x / 2;
 }
 
+void owo()
+{
+}
+
 void main()
 {
+	owo();
 	print(x + funcuwu(2) + func_owo(6));
 }

@@ -28,6 +28,8 @@ end
 exception VarUndef of string (* variable not defined *)
 exception VarDup of string (* duplicate variable *)
 exception FuncWrongArgs of string
+exception FuncNoMain of string
+exception FuncNoReturn of string
 
 (* Frame size, in bytes (each local variables occupies 8 bytes) *)
 let frame_size = ref 0
@@ -776,15 +778,6 @@ let gen_typing = function
         end;
         Set (t1, x, t2, typed_e)
 
-(* let setup_local_vars_inst f_id = function *)
-(*     | Set (t1, x, t2, e) -> () *)
-(*     | Assign (x, t, e) -> () *)
-(*     | Print (t, e) -> () *)
-(**)
-(* let setup_local_vars = function *)
-(*     | Function (t, id, args, scope) -> List.iter (setup_local_vars_inst id) scope *)
-(*     | Set (t1, x, _, e) -> () *)
-
 let helper_functions = 
     label "print_int" ++
     pushq !%rbp ++ (* makes sure, in particular, of alignment issues *)
@@ -825,11 +818,31 @@ let helper_functions =
     popq rbp ++
     ret
 
+let check_function_returns p =
+    let found_main = ref false in
+    List.iter ( fun x -> match x with
+        | Function (t, id, args, scope) ->
+            let has_return = ref false in
+            List.iter (fun x ->
+                match x with
+                | Set (_, _, _, _) -> ()
+                | Assign (_, _, _) -> ()
+                | Print (_, _) -> ()
+                | FunCall (_, _) -> ()
+                | Ret (_, _) -> has_return := true
+            ) scope;
+            if not !has_return && t != NoType then
+                raise (FuncNoReturn ("Non-void function '" ^ id ^ "' should have a return"));
+            if id = "main" then found_main := true
+        | Set (t1, x, _, e) -> ()
+    ) p;
+    if not !found_main then
+        raise (FuncNoMain ("There is no main function!"))
+
 (* Compiles program p and saves to file ofile *)
 let compile_program (p: Ast.program) ofile =
     let p = List.map gen_typing p in (* generate typing *)
-    let () = printf "Types done.\n" in
-    (* List.iter setup_local_vars p; *)
+    check_function_returns p;
     let g_vars_code = List.map compile_stmt_g_vars p in
     let g_vars_code = List.fold_right (++) g_vars_code nop in
     let code = List.map compile_stmt p in

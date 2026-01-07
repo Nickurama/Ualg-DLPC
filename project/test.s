@@ -53,27 +53,27 @@ main:
 	pushq %rbp
 	movq %rsp, %rbp
 	subq $16, %rsp
-	movss 16(%rbp), %xmm0
-	subq $4, %rsp
-	movss %xmm0, 0(%rsp)
+	movsd 16(%rbp), %xmm0
+	subq $8, %rsp
+	movsd %xmm0, 0(%rsp)
 	movl .csts_i32+8(%rip), %eax
 	subq $4, %rsp
 	movl %eax, 0(%rsp)
 	movl 0(%rsp), %eax
 	addq $4, %rsp
-	cvtsi2ssl %eax, %xmm0
-	subq $4, %rsp
-	movss %xmm0, 0(%rsp)
-	movss 0(%rsp), %xmm0
-	addq $4, %rsp
-	movss 0(%rsp), %xmm1
-	addq $4, %rsp
-	divss %xmm0, %xmm1
-	subq $4, %rsp
-	movss %xmm1, 0(%rsp)
-	movss 0(%rsp), %xmm0
-	addq $4, %rsp
-	cvttss2si %xmm0, %eax
+	cvtsi2sdl %eax, %xmm0
+	subq $8, %rsp
+	movsd %xmm0, 0(%rsp)
+	movsd 0(%rsp), %xmm0
+	addq $8, %rsp
+	movsd 0(%rsp), %xmm1
+	addq $8, %rsp
+	divsd %xmm0, %xmm1
+	subq $8, %rsp
+	movsd %xmm1, 0(%rsp)
+	movsd 0(%rsp), %xmm0
+	addq $8, %rsp
+	cvttsd2si %xmm0, %eax
 	subq $4, %rsp
 	movl %eax, 0(%rsp)
 	movl 0(%rsp), %eax
@@ -81,6 +81,13 @@ main:
 	addq $16, %rsp
 	popq %rbp
 	ret
+	addq $16, %rsp
+	popq %rbp
+	ret
+.f_owo:
+	pushq %rbp
+	movq %rsp, %rbp
+	subq $16, %rsp
 	addq $16, %rsp
 	popq %rbp
 	ret
@@ -88,6 +95,9 @@ main:
 	pushq %rbp
 	movq %rsp, %rbp
 	subq $16, %rsp
+	subq $16, %rsp
+	call .f_owo
+	addq $16, %rsp
 	movsd .gvar_f64+0(%rip), %xmm0
 	subq $8, %rsp
 	movsd %xmm0, 0(%rsp)
@@ -111,15 +121,15 @@ main:
 	addsd %xmm0, %xmm1
 	subq $8, %rsp
 	movsd %xmm1, 0(%rsp)
-	subq $12, %rsp
+	subq $8, %rsp
 	movl .csts_i32+12(%rip), %eax
 	subq $4, %rsp
 	movl %eax, 0(%rsp)
 	movl 0(%rsp), %eax
 	addq $4, %rsp
-	cvtsi2ssl %eax, %xmm0
-	subq $4, %rsp
-	movss %xmm0, 0(%rsp)
+	cvtsi2sdl %eax, %xmm0
+	subq $8, %rsp
+	movsd %xmm0, 0(%rsp)
 	call .f_func_owo
 	addq $16, %rsp
 	subq $4, %rsp
