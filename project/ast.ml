@@ -18,6 +18,12 @@ and inst =
     | Print of ty * expr
     | FunCall of string * expr list
     | Ret of ty * expr
+    | If of ty * expr * scope * elif
+
+and elif =
+    | None
+    | Elif of ty * expr * scope * elif
+    | Else of ty * expr * scope
 
 and expr =
     | ICst of int32

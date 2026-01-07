@@ -13,12 +13,15 @@ type token =
   | LP
   | LCST of (int64)
   | LB
+  | IFELSE
+  | IF
   | IDENT of (string)
   | ICST of (int32)
   | FCST of (float)
   | EQ
   | EOF
   | END_INST
+  | ELSE
   | DIV
   | DCST of (float)
   | COMMA

@@ -674,7 +674,7 @@ and check_func_call_type f_id args scope =
         raise (FuncWrongArgs ("Function call does not match function declaration for '" ^ f_id ^ "'."));
     typed_args
 
-let gen_typing_inst f_id scope = function
+let ref gen_typing_inst f_id scope = function
     | Set (t1, x, _, e) ->
         let typed_e = gen_typing_expr f_id scope e in
         let t2 = infer_type typed_e in
@@ -715,6 +715,26 @@ let gen_typing_inst f_id scope = function
         let expr_typed = gen_typing_expr f_id scope e in
         let t = infer_type expr_typed in
         Ret (t, expr_typed)
+    | If (_, e, if_scope, elif) ->
+        let expr_typed = gen_typing_expr f_id scope e in
+        let t = infer_type expr_typed in
+        let scope_typed = List.map (fun x -> gen_typing_inst f_id (scope + 1) x) if_scope in
+        let rec get_typed_elif = function
+            | None -> None
+            | Elif (_, e, sc, nested_elif) ->
+                let e_typed = gen_typing_expr f_id (scope) e in
+                let t_in = infer_type e_typed in
+                let sc_typed = List.map (fun x -> gen_typing_inst f_id (scope + 1) x) if_scope in
+                let elif_t = get_typed_elif nested_elif in
+                Elif (t_in, e_typed, sc_typed, elif_t)
+            | Else (_, e, sc) ->
+                let e_typed = gen_typing_expr f_id (scope) e in
+                let t_in = infer_type e_typed in
+                let sc_typed = List.map (fun x -> gen_typing_inst f_id (scope + 1) x) if_scope in
+                Else (t_in, e_typed, sc_typed)
+        in
+        let elif_typed = get_typed_elif elif in
+        If (t, expr_typed, scope_typed, elif_typed)
 
 
 
@@ -829,6 +849,7 @@ let check_function_returns p =
                 | Assign (_, _, _) -> ()
                 | Print (_, _) -> ()
                 | FunCall (_, _) -> ()
+                | If (_, _, _, _) -> ()
                 | Ret (_, _) -> has_return := true
             ) scope;
             if not !has_return && t != NoType then

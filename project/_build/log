@@ -1,4 +1,4 @@
-# dune exec ./arithc.exe test.minic
+# dune build arithc.exe
 # OCAMLPARAM: unset
 # Shared cache: enabled-except-user-rules
 # Shared cache location: /home/luna/.cache/dune/db
@@ -13,4 +13,25 @@
 #  ; build_dir = In_build_dir "default"
 #  ; instrument_with = []
 #  }
-$ /home/luna/.opam/default/bin/ocamlc.opt -config > /tmp/dune_da1e36_output
+$ /home/luna/.opam/default/bin/ocamlc.opt -config > /tmp/dune_77f93c_output
+$ (cd _build/default && /home/luna/.opam/default/bin/ocamldep.opt -modules -impl compile.ml) > _build/default/.arithc.eobjs/compile.impl.d
+$ (cd _build/default && /home/luna/.opam/default/bin/ocamlopt.opt -g -I .arithc.eobjs/byte -I .arithc.eobjs/native -cmi-file .arithc.eobjs/byte/compile.cmi -no-alias-deps -opaque -o .arithc.eobjs/native/compile.cmx -c -impl compile.ml)
+> File "compile.ml", lines 518-572, characters 31-11:
+> 518 | ...............................function
+> 519 |     | Set (t1, x, t2, e) ->
+> 520 |         compile_expr f_id scope e ++
+> 521 |         convert t2 t1 ++
+> 522 |         assign_var f_id scope t1 x
+> ...
+> 569 |         ) ++
+> 570 |         addq (imm64 bytes_total) !%rsp ++
+> 571 |         popq rbp ++
+> 572 |         ret
+> Warning 8 [partial-match]: this pattern-matching is not exhaustive.
+>   Here is an example of a case that is not matched: If (_, _, _, _)
+>
+> File "compile.ml", line 776, characters 36-51:
+> 776 |         let typed_scope = List.map (gen_typing_inst id 1) scope in
+>                                           ^^^^^^^^^^^^^^^
+> Error: Unbound value gen_typing_inst
+[2]

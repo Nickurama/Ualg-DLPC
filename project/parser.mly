@@ -15,6 +15,7 @@
 %token END_INST
 %token COMMA
 %token EOF
+%token IF IFELSE ELSE
 %token RETURN
 %token LP RP
 %token LB RB
@@ -81,7 +82,14 @@ inst:
 | id = IDENT EQ e = expr                        { Assign (id, NoType, e) }
 | PRINT LP e = expr RP                          { Print (NoType, e) }
 | id = IDENT LP es = expr_list RP               { FunCall (id, List.rev es) }
+| IF LP e = expr RP sc = scope el = elif        { If (NoType, e, sc, el)}
 | RETURN e = expr                               { Ret (NoType, e) }
+;
+
+elif:
+|                                                   { None }
+| IFELSE LP e = expr RP sc = scope el = elif        { Elif (NoType, e, sc, el) }
+| ELSE LP e = expr RP sc = scope                    { Else (NoType, e, sc) }
 ;
 
 expr:

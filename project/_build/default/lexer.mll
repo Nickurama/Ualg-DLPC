@@ -13,6 +13,9 @@
         "double", TYPE TDouble;
         "void", TYPE NoType;
         "return", RETURN;
+        "if", IF;
+        "if else", IFELSE;
+        "else", ELSE;
     ]
     let id_or_kwd s = try List.assoc s kwd_tbl with _ -> IDENT s
 }

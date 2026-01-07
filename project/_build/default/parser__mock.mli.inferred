@@ -10,12 +10,15 @@ type token =
   | LP
   | LCST of int64
   | LB
+  | IFELSE
+  | IF
   | IDENT of string
   | ICST of int32
   | FCST of float
   | EQ
   | EOF
   | END_INST
+  | ELSE
   | DIV
   | DCST of float
   | COMMA
@@ -29,6 +32,7 @@ val xv_insts : Ast.inst list
 val xv_inst : Ast.inst
 val xv_expr_list : Ast.expr list
 val xv_expr : Ast.expr
+val xv_elif : Ast.elif
 val xv_args : Ast.arg list
 val xv_arg : Ast.arg
 val menhir_end_marker : int
