@@ -234,7 +234,21 @@ let find_highest_scope_matching_var f_id var_id scope =
 let get_bytes_until_local_var f_id var_id =
     let l_vars = !((Hashtbl.find func_vars f_id).items) in
     let local_var_type = ref NoType in
-    let previous_vars = List.fold_left (
+    let previous_vars = List.fold_right (
+        fun x acc ->
+            if !local_var_type = NoType then begin
+                if var_id = x.id then
+                    (local_var_type := x.var_type);
+                x :: acc
+            end
+            else acc
+    ) l_vars [] in
+    (List.fold_right (fun x acc -> acc + (type_bytes x.var_type)) previous_vars 0)
+
+let get_bytes_after_arg_var f_id var_id =
+    let l_vars = !((Hashtbl.find func_args f_id).items) in
+    let local_var_type = ref NoType in
+    let following_vars = List.fold_left (
         fun acc x ->
             if !local_var_type = NoType then begin
                 if var_id = x.id then
@@ -243,36 +257,6 @@ let get_bytes_until_local_var f_id var_id =
             end
             else acc
     ) [] l_vars in
-    (* let () = printf "all vars: " in *)
-    (* let () = List.iter (fun x -> printf "%s " x.id) l_vars in *)
-    (* let () = printf "\n" in *)
-    (* let () = printf "previous_vars: " in *)
-    (* let () = List.iter (fun x -> printf "%s " x.id) previous_vars in *)
-    (* let () = printf "\n" in *)
-    (* let () = printf "var: %s\n" var_id in *)
-    (* let () = match !local_var_type with *)
-    (* | NoType -> printf "NoType\n" *)
-    (* | TInt -> printf "NoType\n" *)
-    (* | TLong -> printf "NoType\n" *)
-    (* | TFloat -> printf "NoType\n" *)
-    (* | TDouble -> printf "NoType\n" *)
-    (* in *)
-    (List.fold_right (fun x acc -> acc + (type_bytes x.var_type)) previous_vars 0)
-
-let get_bytes_after_arg_var f_id var_id =
-    let l_vars = !((Hashtbl.find func_args f_id).items) in
-    let local_var_type = ref NoType in
-    let following_vars = List.fold_right (
-        fun x acc ->
-            if !local_var_type = NoType then begin
-                if var_id = x.id then begin
-                (local_var_type := x.var_type);
-                [x]
-                end
-                else x :: acc;
-            end
-            else acc
-    ) l_vars [] in
     (List.fold_right (fun x acc -> acc + (type_bytes x.var_type)) following_vars 0) - (type_bytes !local_var_type)
 
 let get_var_nature f_id scope var_id =
@@ -294,7 +278,7 @@ let get_var_pos f_id scope var_id var_t =
     | Local ->
         Int64.of_int (get_bytes_until_local_var f_id var_id)
     | Argument ->
-        Int64.of_int ((get_bytes_after_arg_var f_id var_id) - 8)
+        Int64.of_int ((get_bytes_after_arg_var f_id var_id) + 16)
     | Global ->
         let pos = (Hashtbl.find global_vars var_id).pos in
         Int64.of_int ((type_bytes var_t) * pos)
@@ -303,6 +287,18 @@ let move_to_based_on_nature lbl real_pos = function
     | Local -> (ind64 ~ofs:(Int64.neg real_pos) rbp)
     | Argument -> (ind64 ~ofs:(real_pos) rbp)
     | Global -> (label_ref lbl real_pos)
+
+let infer_type = function
+    | ICst i -> TInt
+    | LCst i -> TLong
+    | FCst i -> TFloat
+    | DCst i -> TDouble
+    | Var (t, x) -> t
+    | Binop (t_result, o, t1, e1, t2, e2) -> t_result
+    | FunCall (f_id, args) ->
+        if not (Hashtbl.mem function_data f_id) then
+            raise (VarUndef ("Undefined function '" ^ f_id ^ "'."));
+        (Hashtbl.find function_data f_id).ret_type
 
 (* Expression compilation *)
 let rec compile_expr f_id scope = function
@@ -448,7 +444,45 @@ let rec compile_expr f_id scope = function
             ) ++
             push_float64 !%xmm1
     )
-    | FunCall (f_id, args) -> nop (* TODO *)
+    | FunCall (id, args) ->
+        compile_fun_call f_id scope id args true
+and compile_fun_call outer_f_id scope id args should_push_result_to_stack =
+        if not (Hashtbl.mem function_data id) then
+            raise (VarUndef ("Function '" ^ id ^ "' not defined."));
+        let f_data = Hashtbl.find function_data id in
+        let arg_code = List.map2 (fun expr arg ->
+            let expr_t = infer_type expr in
+            compile_expr outer_f_id scope expr ++
+            convert expr_t arg.var_type
+        ) args f_data.args in
+        let arg_code = List.fold_right (++) arg_code nop in
+        let sum_bytes = List.fold_right (fun x acc ->
+            acc + (type_bytes x.var_type)
+        ) f_data.args 0 in
+        let remainder_align = Int64.sub (Int64.of_int 16) (Int64.rem (Int64.of_int sum_bytes) (Int64.of_int 16)) in
+        let bytes_total = Int64.add (Int64.of_int sum_bytes) remainder_align in
+
+        (* push arguments to stack *)
+        subq (imm64 remainder_align) !%rsp ++
+        arg_code ++
+
+        (* call function *)
+        call (gen_func_name id) ++
+
+        (* pop arguments *)
+        addq (imm64 bytes_total) !%rsp ++
+
+        (* push return value into stack *)
+        if should_push_result_to_stack then (
+            match f_data.ret_type with
+            | NoType -> raise (VarUndef "Variable with no type! (type of binop)")
+            | TInt -> push_int32 !%eax
+            | TLong -> push_int64 !%rax
+            | TFloat -> push_float32 !%xmm0
+            | TDouble -> push_float64 !%xmm0
+        )
+        else nop
+
 
 (* assumes the value to assign is currently at the top of the stack *)
 let assign_var f_id scope t x =
@@ -513,20 +547,7 @@ let compile_instr f_id scope = function
                 call "print_double"
         )
     | FunCall (id, args) ->
-        (* TODO *)
-        nop
-        (* if not (Hashtbl.mem function_data f_id) then *)
-        (*     raise (VarUndef ("Function '" ^ f_id ^ "' not defined.")); *)
-        (* let arg_list = map_args_to_typed_var_list args scope in *)
-        (* let decl_f_data = Hashtbl.find function_data f_id in *)
-        (* let rec push_args call_args original_args = match call_args, original_args with *)
-        (* | [], [] -> nop *)
-        (* | [], _ | _, [] -> raise (FuncWrongArgs ("There was a problem calling the function.")) *)
-        (* | x::xs, y::ys -> *)
-        (**)
-        (*     push_args xs ys *)
-        (* in *)
-        (* push_args arg_list decl_f_data.args; *)
+        compile_fun_call f_id scope id args true
 
 let arg_bytes = function
     | Arg (t, _) -> type_bytes t
@@ -568,18 +589,6 @@ let compile_stmt_g_vars = function
         compile_expr "" 0 e ++
         convert t2 t1 ++
         assign_var "" 0 t1 x
-
-let infer_type = function
-    | ICst i -> TInt
-    | LCst i -> TLong
-    | FCst i -> TFloat
-    | DCst i -> TDouble
-    | Var (t, x) -> t
-    | Binop (t_result, o, t1, e1, t2, e2) -> t_result
-    | FunCall (f_id, args) ->
-        if not (Hashtbl.mem function_data f_id) then
-            raise (VarUndef ("Undefined function '" ^ f_id ^ "'."));
-        (Hashtbl.find function_data f_id).ret_type
 
 let type_of_binop o t1 t2 =
         match (t1, t2) with
