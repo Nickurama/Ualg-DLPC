@@ -1,12 +1,15 @@
 # TODO
 - return instruction
 - (check if there is a main function with type void and no args)
+- (check if function has a return (if non-void))
 
 - if
 - if else
 - else
 
 - while loop
+- break
+- continue
 
 - report
 

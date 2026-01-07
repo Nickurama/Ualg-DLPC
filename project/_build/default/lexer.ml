@@ -12,11 +12,12 @@
         "long", TYPE TLong;
         "float", TYPE TFloat;
         "double", TYPE TDouble;
-        "void", TYPE NoType
+        "void", TYPE NoType;
+        "return", RETURN;
     ]
     let id_or_kwd s = try List.assoc s kwd_tbl with _ -> IDENT s
 
-# 20 "lexer.ml"
+# 21 "lexer.ml"
 let __ocaml_lex_tables = {
   Lexing.lex_base =
    "\000\000\235\255\236\255\078\000\241\255\242\255\243\255\244\255\
@@ -57,7 +58,7 @@ let __ocaml_lex_tables = {
     \015\000\015\000\015\000\015\000\015\000\015\000\015\000\015\000\
     \015\000\015\000\015\000\015\000\015\000\015\000\015\000\015\000\
     \015\000\015\000\015\000\015\000\015\000\000\000\000\000\000\000\
-    \000\000\000\000\022\000\015\000\015\000\015\000\015\000\015\000\
+    \000\000\015\000\022\000\015\000\015\000\015\000\015\000\015\000\
     \015\000\015\000\015\000\015\000\015\000\015\000\015\000\015\000\
     \015\000\015\000\015\000\015\000\015\000\015\000\015\000\015\000\
     \015\000\015\000\015\000\015\000\015\000\023\000\023\000\023\000\
@@ -113,7 +114,7 @@ let __ocaml_lex_tables = {
     \015\000\015\000\015\000\015\000\015\000\015\000\015\000\015\000\
     \015\000\015\000\015\000\015\000\015\000\015\000\015\000\015\000\
     \015\000\015\000\015\000\015\000\015\000\255\255\255\255\255\255\
-    \255\255\255\255\003\000\015\000\015\000\015\000\015\000\015\000\
+    \255\255\015\000\003\000\015\000\015\000\015\000\015\000\015\000\
     \015\000\015\000\015\000\015\000\015\000\015\000\015\000\015\000\
     \015\000\015\000\015\000\015\000\015\000\015\000\015\000\015\000\
     \015\000\015\000\015\000\015\000\015\000\021\000\021\000\021\000\
@@ -164,147 +165,147 @@ let rec token lexbuf =
 and __ocaml_lex_token_rec lexbuf __ocaml_lex_state =
   match Lexing.engine __ocaml_lex_tables __ocaml_lex_state lexbuf with
       | 0 ->
-# 26 "lexer.mll"
+# 28 "lexer.mll"
             ( new_line lexbuf; token lexbuf )
-# 170 "lexer.ml"
+# 171 "lexer.ml"
 
   | 1 ->
-# 27 "lexer.mll"
+# 29 "lexer.mll"
                       ( new_line lexbuf; token lexbuf )
-# 175 "lexer.ml"
+# 176 "lexer.ml"
 
   | 2 ->
-# 28 "lexer.mll"
+# 30 "lexer.mll"
             ( token lexbuf )
-# 180 "lexer.ml"
+# 181 "lexer.ml"
 
   | 3 ->
 let
-# 29 "lexer.mll"
+# 31 "lexer.mll"
              id
-# 186 "lexer.ml"
+# 187 "lexer.ml"
 = Lexing.sub_lexeme lexbuf lexbuf.Lexing.lex_start_pos lexbuf.Lexing.lex_curr_pos in
-# 29 "lexer.mll"
+# 31 "lexer.mll"
                 ( id_or_kwd id )
-# 190 "lexer.ml"
+# 191 "lexer.ml"
 
   | 4 ->
-# 30 "lexer.mll"
+# 32 "lexer.mll"
             ( PLUS )
-# 195 "lexer.ml"
+# 196 "lexer.ml"
 
   | 5 ->
-# 31 "lexer.mll"
+# 33 "lexer.mll"
             ( MINUS )
-# 200 "lexer.ml"
+# 201 "lexer.ml"
 
   | 6 ->
-# 32 "lexer.mll"
+# 34 "lexer.mll"
             ( TIMES )
-# 205 "lexer.ml"
+# 206 "lexer.ml"
 
   | 7 ->
-# 33 "lexer.mll"
+# 35 "lexer.mll"
             ( DIV )
-# 210 "lexer.ml"
+# 211 "lexer.ml"
 
   | 8 ->
-# 34 "lexer.mll"
+# 36 "lexer.mll"
             ( EQ )
-# 215 "lexer.ml"
+# 216 "lexer.ml"
 
   | 9 ->
-# 35 "lexer.mll"
+# 37 "lexer.mll"
             ( LB )
-# 220 "lexer.ml"
+# 221 "lexer.ml"
 
   | 10 ->
-# 36 "lexer.mll"
+# 38 "lexer.mll"
             ( RB )
-# 225 "lexer.ml"
+# 226 "lexer.ml"
 
   | 11 ->
-# 37 "lexer.mll"
+# 39 "lexer.mll"
             ( LP )
-# 230 "lexer.ml"
+# 231 "lexer.ml"
 
   | 12 ->
-# 38 "lexer.mll"
+# 40 "lexer.mll"
             ( RP )
-# 235 "lexer.ml"
+# 236 "lexer.ml"
 
   | 13 ->
-# 39 "lexer.mll"
+# 41 "lexer.mll"
             ( END_INST )
-# 240 "lexer.ml"
+# 241 "lexer.ml"
 
   | 14 ->
-# 40 "lexer.mll"
+# 42 "lexer.mll"
             ( COMMA )
-# 245 "lexer.ml"
+# 246 "lexer.ml"
 
   | 15 ->
 let
-# 41 "lexer.mll"
+# 43 "lexer.mll"
                s
-# 251 "lexer.ml"
+# 252 "lexer.ml"
 = Lexing.sub_lexeme lexbuf lexbuf.Lexing.lex_start_pos lexbuf.Lexing.lex_curr_pos in
-# 41 "lexer.mll"
+# 43 "lexer.mll"
                  ( ICST (Int32.of_string s) )
-# 255 "lexer.ml"
+# 256 "lexer.ml"
 
   | 16 ->
 let
-# 42 "lexer.mll"
+# 44 "lexer.mll"
                    s
-# 261 "lexer.ml"
+# 262 "lexer.ml"
 = Lexing.sub_lexeme lexbuf lexbuf.Lexing.lex_start_pos lexbuf.Lexing.lex_curr_pos in
-# 42 "lexer.mll"
+# 44 "lexer.mll"
                      (
       let len = String.length s in
       let s_cropped = String.sub s 0 (len - 1) in
       LCST (Int64.of_string s_cropped)
   )
-# 269 "lexer.ml"
+# 270 "lexer.ml"
 
   | 17 ->
 let
-# 47 "lexer.mll"
+# 49 "lexer.mll"
                            s
-# 275 "lexer.ml"
+# 276 "lexer.ml"
 = Lexing.sub_lexeme lexbuf lexbuf.Lexing.lex_start_pos lexbuf.Lexing.lex_curr_pos in
-# 47 "lexer.mll"
+# 49 "lexer.mll"
                              ( FCST (float_of_string s) )
-# 279 "lexer.ml"
+# 280 "lexer.ml"
 
   | 18 ->
 let
-# 48 "lexer.mll"
+# 50 "lexer.mll"
                                s
-# 285 "lexer.ml"
+# 286 "lexer.ml"
 = Lexing.sub_lexeme lexbuf lexbuf.Lexing.lex_start_pos lexbuf.Lexing.lex_curr_pos in
-# 48 "lexer.mll"
+# 50 "lexer.mll"
                                  ( 
       let len = String.length s in
       let s_cropped = String.sub s 0 (len - 1) in
       DCST (float_of_string s_cropped)
   )
-# 293 "lexer.ml"
+# 294 "lexer.ml"
 
   | 19 ->
-# 53 "lexer.mll"
+# 55 "lexer.mll"
             ( EOF )
-# 298 "lexer.ml"
+# 299 "lexer.ml"
 
   | 20 ->
 let
-# 54 "lexer.mll"
+# 56 "lexer.mll"
          c
-# 304 "lexer.ml"
+# 305 "lexer.ml"
 = Lexing.sub_lexeme_char lexbuf lexbuf.Lexing.lex_start_pos in
-# 54 "lexer.mll"
+# 56 "lexer.mll"
             ( raise (Lexing_error c) )
-# 308 "lexer.ml"
+# 309 "lexer.ml"
 
   | __ocaml_lex_state -> lexbuf.Lexing.refill_buff lexbuf;
       __ocaml_lex_token_rec lexbuf __ocaml_lex_state

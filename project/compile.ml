@@ -548,6 +548,26 @@ let compile_instr f_id scope = function
         )
     | FunCall (id, args) ->
         compile_fun_call f_id scope id args false
+    | Ret (t, e) ->
+        let f_data = Hashtbl.find function_data f_id in
+        let sum_bytes = List.fold_right (fun x acc ->
+            acc + (type_bytes x.var_type)
+        ) f_data.args 0 in
+        let remainder_align = Int64.sub (Int64.of_int 16) (Int64.rem (Int64.of_int sum_bytes) (Int64.of_int 16)) in
+        let bytes_total = Int64.add (Int64.of_int sum_bytes) remainder_align in
+        compile_expr f_id scope e ++
+        convert t f_data.ret_type ++
+        (
+            match f_data.ret_type with
+            | NoType -> nop
+            | TInt -> pop_int32 !%eax
+            | TLong -> pop_int64 !%rax
+            | TFloat -> pop_float32 !%xmm0
+            | TDouble -> pop_float64 !%xmm0
+        ) ++
+        addq (imm64 bytes_total) !%rsp ++
+        popq rbp ++
+        ret
 
 let arg_bytes = function
     | Arg (t, _) -> type_bytes t
@@ -689,6 +709,11 @@ let gen_typing_inst f_id scope = function
         Print (t, expr_typed)
     | FunCall (id, args) ->
         FunCall (id, check_func_call_type id args scope)
+    | Ret (_, e) ->
+        let expr_typed = gen_typing_expr f_id scope e in
+        let t = infer_type expr_typed in
+        Ret (t, expr_typed)
+
 
 
 let process_arg f_id = function
@@ -719,14 +744,14 @@ let map_args_to_typed_var_list args scope = List.map (
 let gen_typing = function
     | Function (t, id, args, scope) ->
         List.iter (process_arg id) args;
-        let typed_scope = List.map (gen_typing_inst id 1) scope in
         let arg_list = map_args_to_typed_var_list args 1 in
         let f_data = { ret_type = t; args = arg_list } in
         if (Hashtbl.mem function_data id) then
             raise (VarDup ("Duplicate funcion '" ^ id ^ "'."))
-        else begin
-            Hashtbl.add function_data id f_data
+            else begin
+                Hashtbl.add function_data id f_data
         end;
+        let typed_scope = List.map (gen_typing_inst id 1) scope in
         Function (t, id, args, typed_scope)
     | Set (t1, x, _, e) ->
         let typed_e = gen_typing_expr "" 0 e in

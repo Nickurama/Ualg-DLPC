@@ -5,6 +5,7 @@ type token =
   | TYPE of (Ast.ty)
   | TIMES
   | RP
+  | RETURN
   | RB
   | PRINT
   | PLUS

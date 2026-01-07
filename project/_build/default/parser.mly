@@ -15,6 +15,7 @@
 %token END_INST
 %token COMMA
 %token EOF
+%token RETURN
 %token LP RP
 %token LB RB
 %token PLUS MINUS TIMES DIV
@@ -78,7 +79,8 @@ inst:
 | t = TYPE id = IDENT EQ e = expr               { Set (t, id, NoType, e) }
 | id = IDENT EQ e = expr                        { Assign (id, NoType, e) }
 | PRINT LP e = expr RP                          { Print (NoType, e) }
-| id = IDENT LP es = expr_list RP                { FunCall (id, List.rev es) }
+| id = IDENT LP es = expr_list RP               { FunCall (id, List.rev es) }
+| RETURN e = expr                               { Ret (NoType, e) }
 ;
 
 expr:

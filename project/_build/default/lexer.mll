@@ -11,14 +11,16 @@
         "long", TYPE TLong;
         "float", TYPE TFloat;
         "double", TYPE TDouble;
-        "void", TYPE NoType
+        "void", TYPE NoType;
+        "return", RETURN;
     ]
     let id_or_kwd s = try List.assoc s kwd_tbl with _ -> IDENT s
 }
 
+let symbols = ['_']
 let letter = ['a'-'z' 'A'-'Z']
 let digit = ['0'-'9']
-let ident = letter (letter | digit)*
+let ident = letter (letter | digit | symbols)*
 let integer = ['0'-'9']+
 let space = [' ' '\t']
 

@@ -18,6 +18,7 @@ and inst =
     | Assign of string * ty * expr
     | Print of ty * expr
     | FunCall of string * expr list
+    | Ret of ty * expr
 
 and expr =
     | ICst of int32

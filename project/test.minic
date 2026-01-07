@@ -1,9 +1,17 @@
-int func(int a)
+double x = 3;
+
+int funcuwu(int a)
 {
-	print(a);
+	int x = a + 1;
+	return x;
+}
+
+int func_owo(float x)
+{
+	return x / 2;
 }
 
 void main()
 {
-	func(1);
+	print(x + funcuwu(2) + func_owo(6));
 }
