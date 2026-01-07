@@ -11,57 +11,12 @@ main:
 	pushq %rbp
 	movq %rsp, %rbp
 	subq $16, %rsp
-	movl 36(%rbp), %eax
+	movl 16(%rbp), %eax
 	subq $4, %rsp
 	movl %eax, 0(%rsp)
-	movl 0(%rsp), %eax
+	movl 0(%rsp), %edi
 	addq $4, %rsp
-	cvtsi2sdl %eax, %xmm0
-	subq $8, %rsp
-	movsd %xmm0, 0(%rsp)
-	movsd 28(%rbp), %xmm0
-	subq $8, %rsp
-	movsd %xmm0, 0(%rsp)
-	movsd 0(%rsp), %xmm0
-	addq $8, %rsp
-	movsd 0(%rsp), %xmm1
-	addq $8, %rsp
-	addsd %xmm0, %xmm1
-	subq $8, %rsp
-	movsd %xmm1, 0(%rsp)
-	movss 24(%rbp), %xmm0
-	subq $4, %rsp
-	movss %xmm0, 0(%rsp)
-	movss 0(%rsp), %xmm0
-	addq $4, %rsp
-	cvtss2sd %xmm0, %xmm0
-	subq $8, %rsp
-	movsd %xmm0, 0(%rsp)
-	movsd 0(%rsp), %xmm0
-	addq $8, %rsp
-	movsd 0(%rsp), %xmm1
-	addq $8, %rsp
-	addsd %xmm0, %xmm1
-	subq $8, %rsp
-	movsd %xmm1, 0(%rsp)
-	movq 16(%rbp), %rax
-	subq $8, %rsp
-	movq %rax, 0(%rsp)
-	movq 0(%rsp), %rax
-	addq $8, %rsp
-	cvtsi2sdq %rax, %xmm0
-	subq $8, %rsp
-	movsd %xmm0, 0(%rsp)
-	movsd 0(%rsp), %xmm0
-	addq $8, %rsp
-	movsd 0(%rsp), %xmm1
-	addq $8, %rsp
-	addsd %xmm0, %xmm1
-	subq $8, %rsp
-	movsd %xmm1, 0(%rsp)
-	movsd 0(%rsp), %xmm0
-	addq $8, %rsp
-	call print_double
+	call print_int
 	addq $16, %rsp
 	popq %rbp
 	ret
@@ -69,38 +24,12 @@ main:
 	pushq %rbp
 	movq %rsp, %rbp
 	subq $16, %rsp
-	subq $8, %rsp
+	subq $12, %rsp
 	movl .csts_i32+0(%rip), %eax
 	subq $4, %rsp
 	movl %eax, 0(%rsp)
-	movl .csts_i32+4(%rip), %eax
-	subq $4, %rsp
-	movl %eax, 0(%rsp)
-	movl 0(%rsp), %eax
-	addq $4, %rsp
-	cvtsi2sdl %eax, %xmm0
-	subq $8, %rsp
-	movsd %xmm0, 0(%rsp)
-	movl .csts_i32+8(%rip), %eax
-	subq $4, %rsp
-	movl %eax, 0(%rsp)
-	movl 0(%rsp), %eax
-	addq $4, %rsp
-	cvtsi2ssl %eax, %xmm0
-	subq $4, %rsp
-	movss %xmm0, 0(%rsp)
-	movl .csts_i32+12(%rip), %eax
-	subq $4, %rsp
-	movl %eax, 0(%rsp)
-	movl 0(%rsp), %eax
-	addq $4, %rsp
-	movslq %eax, %rax
-	subq $8, %rsp
-	movq %rax, 0(%rsp)
 	call .f_func
-	addq $32, %rsp
-	subq $4, %rsp
-	movl %eax, 0(%rsp)
+	addq $16, %rsp
 	addq $16, %rsp
 	popq %rbp
 	ret
@@ -153,7 +82,7 @@ print_double:
 .csts_i16:
 	.word 
 .csts_i32:
-	.int 1, 2, 4, 12
+	.int 1
 .csts_i64:
 	.quad 
 .csts_f32:

@@ -13,4 +13,4 @@
 #  ; build_dir = In_build_dir "default"
 #  ; instrument_with = []
 #  }
-$ /home/luna/.opam/default/bin/ocamlc.opt -config > /tmp/dune_12fd25_output
+$ /home/luna/.opam/default/bin/ocamlc.opt -config > /tmp/dune_bea411_output

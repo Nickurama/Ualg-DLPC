@@ -547,7 +547,7 @@ let compile_instr f_id scope = function
                 call "print_double"
         )
     | FunCall (id, args) ->
-        compile_fun_call f_id scope id args true
+        compile_fun_call f_id scope id args false
 
 let arg_bytes = function
     | Arg (t, _) -> type_bytes t

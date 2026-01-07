@@ -1,9 +1,9 @@
-int func(int a, double b, float c, long d)
+int func(int a)
 {
-	print(a + b + c + d);
+	print(a);
 }
 
 void main()
 {
-	func(1, 2, 4, 12);
+	func(1);
 }
