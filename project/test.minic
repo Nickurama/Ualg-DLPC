@@ -1,22 +1,17 @@
-void main()
+long i = 23;
+
+
+int func(int a, int f)
 {
-	int x = 5;
-	double y = 4.0d;
-	double z = 3.2d;
-	print(y);
-	print(z);
-	z = 10.0d;
-	print(y + z);
+	int i = 5;
+	print(i);
 }
 
-#void main(int a)
-#{
-#	print(a);
-#	print(x);
-#	print(y);
-#	float z = 3;
-#	print(z);
-#	x = x + y;
-#	print(x);
-#	print(y);
-#}
+void main()
+{
+	long i = 2;
+	i = 5;
+	int f = 5;
+	print(i);
+	func(i, f);
+}

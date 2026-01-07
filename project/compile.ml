@@ -27,6 +27,7 @@ end
 (* Exception to raise when a variable (local or global) isn't used as intended *)
 exception VarUndef of string (* variable not defined *)
 exception VarDup of string (* duplicate variable *)
+exception FuncWrongArgs of string
 
 (* Frame size, in bytes (each local variables occupies 8 bytes) *)
 let frame_size = ref 0
@@ -71,6 +72,11 @@ type f_var = {
     v_type: ty;
 }
 
+type func_data = {
+    ret_type: ty;
+    args: typed_var list;
+}
+
 (* Global variables *)
 let (global_vars: (string, var_info) Hashtbl.t) = Hashtbl.create 17 (* string -> pos, type, bits *)
 
@@ -92,14 +98,13 @@ let constants_i64 = dl_create ()
 let constants_f32 = dl_create ()
 let constants_f64 = dl_create ()
 
-
-(* hashtable with number of variables for a given function *)
-let (func_var_num : (string, int) Hashtbl.t) = Hashtbl.create 17
-
 (* local variables *)
 let (local_vars: (func_var, var_info) Hashtbl.t) = Hashtbl.create 17 (* string -> pos, type, bits *)
 let (func_vars: (string, typed_var dyn_list) Hashtbl.t) = Hashtbl.create 17 (* string -> pos, type, bits *)
 let (func_args: (string, typed_var dyn_list) Hashtbl.t) = Hashtbl.create 17 (* string -> pos, type, bits *)
+
+(* function data *)
+let (function_data: (string, func_data) Hashtbl.t) = Hashtbl.create 17 (* string -> pos, type, bits *)
 
 let gen_func_name x =
     ".f_" ^ x
@@ -443,6 +448,7 @@ let rec compile_expr f_id scope = function
             ) ++
             push_float64 !%xmm1
     )
+    | FunCall (f_id, args) -> nop (* TODO *)
 
 (* assumes the value to assign is currently at the top of the stack *)
 let assign_var f_id scope t x =
@@ -489,21 +495,38 @@ let compile_instr f_id scope = function
         assign_var f_id scope var_type x
     | Print (t, e) ->
         compile_expr f_id scope e ++
-        match t with
-        | NoType -> raise (VarUndef "Variable with no type! (compile Print)") (* not supposed to happen *)
-        | TInt ->
-            pop_int32 !%edi ++
-            call "print_int"
-        | TLong ->
-            pop_int64 !%rdi ++
-            call "print_long"
-        | TFloat ->
-            (* pxor *)
-            pop_float32 !%xmm0 ++
-            call "print_float"
-        | TDouble ->
-            pop_float64 !%xmm0 ++
-            call "print_double"
+        (
+            match t with
+            | NoType -> raise (VarUndef "Variable with no type! (compile Print)") (* not supposed to happen *)
+            | TInt ->
+                pop_int32 !%edi ++
+                call "print_int"
+            | TLong ->
+                pop_int64 !%rdi ++
+                call "print_long"
+            | TFloat ->
+                (* pxor *)
+                pop_float32 !%xmm0 ++
+                call "print_float"
+            | TDouble ->
+                pop_float64 !%xmm0 ++
+                call "print_double"
+        )
+    | FunCall (id, args) ->
+        (* TODO *)
+        nop
+        (* if not (Hashtbl.mem function_data f_id) then *)
+        (*     raise (VarUndef ("Function '" ^ f_id ^ "' not defined.")); *)
+        (* let arg_list = map_args_to_typed_var_list args scope in *)
+        (* let decl_f_data = Hashtbl.find function_data f_id in *)
+        (* let rec push_args call_args original_args = match call_args, original_args with *)
+        (* | [], [] -> nop *)
+        (* | [], _ | _, [] -> raise (FuncWrongArgs ("There was a problem calling the function.")) *)
+        (* | x::xs, y::ys -> *)
+        (**)
+        (*     push_args xs ys *)
+        (* in *)
+        (* push_args arg_list decl_f_data.args; *)
 
 let arg_bytes = function
     | Arg (t, _) -> type_bytes t
@@ -553,6 +576,10 @@ let infer_type = function
     | DCst i -> TDouble
     | Var (t, x) -> t
     | Binop (t_result, o, t1, e1, t2, e2) -> t_result
+    | FunCall (f_id, args) ->
+        if not (Hashtbl.mem function_data f_id) then
+            raise (VarUndef ("Undefined function '" ^ f_id ^ "'."));
+        (Hashtbl.find function_data f_id).ret_type
 
 let type_of_binop o t1 t2 =
         match (t1, t2) with
@@ -595,6 +622,26 @@ let rec gen_typing_expr f_id scope = function
 
                 let t_result = type_of_binop o t1 t2 in
                 Binop (t_result, o, t1, typed_e1, t2, typed_e2)
+        | FunCall (id, args) ->
+            FunCall (id, check_func_call_type id args scope)
+and check_func_call_type f_id args scope =
+    let typed_args = List.map (gen_typing_expr f_id scope) args in
+    let arg_types = List.map (infer_type) typed_args in
+    if not (Hashtbl.mem function_data f_id) then
+        raise (VarUndef ("Function '" ^ f_id ^ "' not defined."));
+    let decl_f_data = Hashtbl.find function_data f_id in
+    let rec matches_declaration call_arg_types original_args = match call_arg_types, original_args with
+    | [], [] -> true
+    | [], _ | _, [] -> false
+    | x::xs, y::ys -> matches_declaration xs ys
+    (* | x::xs, y::ys -> *)
+    (*     if x != y.var_type then false *)
+    (*     else matches_declaration xs ys *)
+    in
+    let does_match = matches_declaration arg_types decl_f_data.args in
+    if not does_match then
+        raise (FuncWrongArgs ("Function call does not match function declaration for '" ^ f_id ^ "'."));
+    typed_args
 
 let gen_typing_inst f_id scope = function
     | Set (t1, x, _, e) ->
@@ -631,6 +678,9 @@ let gen_typing_inst f_id scope = function
         let expr_typed = gen_typing_expr f_id scope e in
         let t = infer_type expr_typed in
         Print (t, expr_typed)
+    | FunCall (id, args) ->
+        FunCall (id, check_func_call_type id args scope)
+
 
 let process_arg f_id = function
     | Arg (t, id) ->
@@ -653,11 +703,21 @@ let process_arg f_id = function
             };
         end
 
+let map_args_to_typed_var_list args scope = List.map (
+        fun x -> match x with Arg (t, id) -> { id = id; var_type = t; scope = scope }
+    ) args
 
 let gen_typing = function
     | Function (t, id, args, scope) ->
         List.iter (process_arg id) args;
         let typed_scope = List.map (gen_typing_inst id 1) scope in
+        let arg_list = map_args_to_typed_var_list args 1 in
+        let f_data = { ret_type = t; args = arg_list } in
+        if (Hashtbl.mem function_data id) then
+            raise (VarDup ("Duplicate funcion '" ^ id ^ "'."))
+        else begin
+            Hashtbl.add function_data id f_data
+        end;
         Function (t, id, args, typed_scope)
     | Set (t1, x, _, e) ->
         let typed_e = gen_typing_expr "" 0 e in

@@ -17,6 +17,7 @@ and inst =
     | Set of ty * string * ty * expr
     | Assign of string * ty * expr
     | Print of ty * expr
+    | FunCall of string * expr list
 
 and expr =
     | ICst of int32
@@ -25,6 +26,7 @@ and expr =
     | DCst of float
     | Var of ty * string
     | Binop of ty * binop * ty * expr * ty * expr
+    | FunCall of string * expr list
 
 and ty =
     | NoType (* placeholder *)

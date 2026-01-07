@@ -26,6 +26,7 @@ val xv_prog : Ast.program
 val xv_op : Ast.binop
 val xv_insts : Ast.inst list
 val xv_inst : Ast.inst
+val xv_expr_list : Ast.expr list
 val xv_expr : Ast.expr
 val xv_args : Ast.arg list
 val xv_arg : Ast.arg
