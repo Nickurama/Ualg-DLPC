@@ -109,6 +109,7 @@ let (func_args: (string, typed_var dyn_list) Hashtbl.t) = Hashtbl.create 17
 (* function data *)
 let (function_data: (string, func_data) Hashtbl.t) = Hashtbl.create 17
 let (func_ifs: (string, int ref)  Hashtbl.t) = Hashtbl.create 17
+let (func_whiles: (string, int ref)  Hashtbl.t) = Hashtbl.create 17
 
 let gen_func_name x =
     ".f_" ^ x
@@ -620,6 +621,12 @@ let gen_if_name f_id if_num count =
 let gen_if_name_end f_id if_num =
     ".if_" ^ f_id ^ "_" ^ (string_of_int if_num) ^ "_end"
 
+let gen_while_name_start f_id while_num =
+    ".while_" ^ f_id ^ "_" ^ (string_of_int while_num) ^ "_start"
+
+let gen_while_name_end f_id while_num =
+    ".while_" ^ f_id ^ "_" ^ (string_of_int while_num) ^ "_end"
+
 (* Instruction compilation *)
 let rec compile_instr f_id scope = function
     | Set (t1, x, t2, e) ->
@@ -629,7 +636,16 @@ let rec compile_instr f_id scope = function
     | Assign (x, t, e) ->
         let v_nature = get_var_nature f_id scope x in
         let var_type = match v_nature with
-        | Local | Argument -> (Hashtbl.find local_vars { func = f_id; var = x; scope = scope }).var_type
+        (* | Local | Argument -> (Hashtbl.find local_vars { func = f_id; var = x; scope = scope }).var_type *)
+        | Local | Argument ->
+            let vars = if (Hashtbl.mem func_vars f_id) then List.fold_right (fun x acc -> x :: acc) !((Hashtbl.find func_vars f_id).items) [] else [] in
+            let vars = if (Hashtbl.mem func_args f_id) then List.fold_right (fun x acc -> x :: acc) !((Hashtbl.find func_args f_id).items) vars else vars in
+            let var_type = ref NoType in
+            List.iter (fun a ->
+                if (a.id = x) then var_type := a.var_type
+            ) vars;
+            let () = printf "owo\n" in
+            !var_type
         | Global -> (Hashtbl.find global_vars x).var_type
         in
         compile_expr f_id scope e ++
@@ -685,8 +701,6 @@ let rec compile_instr f_id scope = function
             Hashtbl.add func_ifs f_id (ref 0); 0
         end in
         let rec compile_elif in_t in_e in_sc in_elif curr_num =
-            let code = List.map (compile_instr f_id (scope + 1)) in_sc in
-            let code = List.fold_right (++) code nop in
             label (gen_if_name f_id if_num curr_num) ++ (* current if label *)
             compile_expr f_id scope in_e ++
             pop_int32 !%eax ++
@@ -697,6 +711,8 @@ let rec compile_instr f_id scope = function
                 | Elif (_, _, _, _) -> jz (gen_if_name f_id if_num (curr_num + 1)) (* jump to next elif *)
                 | Else (_) -> jz (gen_if_name f_id if_num (curr_num + 1)) (* jump to else ("next elif") *)
             ) ++
+            let code = List.map (compile_instr f_id (scope + 1)) in_sc in
+            let code = List.fold_right (++) code nop in
             code ++
             jmp (gen_if_name_end f_id if_num) ++ (* end of whole if *)
             (
@@ -712,6 +728,24 @@ let rec compile_instr f_id scope = function
         in
         compile_elif t e sc elif 0 ++
         label (gen_if_name_end f_id if_num) (* end of if label *)
+    | While (t, e, sc) ->
+        let while_num = if Hashtbl.mem func_whiles f_id then
+            let num = !(Hashtbl.find func_whiles f_id) + 1 in
+            (Hashtbl.find func_whiles f_id) := num;
+            num
+        else begin
+            Hashtbl.add func_whiles f_id (ref 0); 0
+        end in
+        label (gen_while_name_start f_id while_num) ++
+        compile_expr f_id scope e ++
+        pop_int32 !%eax ++
+        test !%eax !%eax ++
+        jz (gen_while_name_end f_id while_num) ++
+        let code = List.map (compile_instr f_id (scope + 1)) sc in
+        let code = List.fold_right (++) code nop in
+        code ++
+        jmp (gen_while_name_start f_id while_num) ++
+        label (gen_while_name_end f_id while_num)
 
 let arg_bytes = function
     | Arg (t, _) -> type_bytes t
@@ -896,8 +930,12 @@ let rec gen_typing_inst f_id scope = function
         in
         let elif_typed = get_typed_elif elif in
         If (t, expr_typed, scope_typed, elif_typed)
-
-
+    | While (_, e, sc) ->
+        let expr_typed = gen_typing_expr f_id scope e in
+        let t = infer_type expr_typed in
+        if t != TInt then raise (VarTy ("While loop requires an expression of type Int"));
+        let scope_typed = List.map (fun x -> gen_typing_inst f_id (scope + 1) x) sc in
+        While (t, expr_typed, scope_typed)
 
 let process_arg f_id = function
     | Arg (t, id) ->
@@ -1012,6 +1050,7 @@ let check_function_returns p =
                 | FunCall (_, _) -> ()
                 | If (_, _, _, _) -> ()
                 | Ret (_, _) -> has_return := true
+                | While (_, _, _) -> ()
             ) scope;
             if not !has_return && t != NoType then
                 raise (FuncNoReturn ("Non-void function '" ^ id ^ "' should have a return"));

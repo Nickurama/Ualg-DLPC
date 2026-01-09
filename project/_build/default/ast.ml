@@ -19,6 +19,7 @@ and inst =
     | FunCall of string * expr list
     | Ret of ty * expr
     | If of ty * expr * scope * elif
+    | While of ty * expr * scope
 
 and elif =
     | None

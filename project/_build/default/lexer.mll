@@ -16,6 +16,7 @@
         "if", IF;
         "else_if", IFELSE;
         "else", ELSE;
+        "while", WHILE;
     ]
     let id_or_kwd s = try List.assoc s kwd_tbl with _ -> IDENT s
 }

@@ -1,5 +1,6 @@
 type token =
-    TYPE of Ast.ty
+    WHILE
+  | TYPE of Ast.ty
   | TIMES
   | RP
   | RETURN

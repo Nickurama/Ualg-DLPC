@@ -17,6 +17,7 @@
 %token EOF
 %token CMP_NOT CMP_EQ CMP_NEQ CMP_LESS CMP_LEQ CMP_GRTR CMP_GEQ
 %token IF IFELSE ELSE
+%token WHILE
 %token RETURN
 %token LP RP
 %token LB RB
@@ -86,6 +87,7 @@ inst:
 | id = IDENT LP es = expr_list RP               { FunCall (id, List.rev es) }
 | IF LP e = expr RP sc = scope el = elif        { If (NoType, e, sc, el)}
 | RETURN e = expr                               { Ret (NoType, e) }
+| WHILE LP e = expr RP sc = scope               { While (NoType, e, sc)}
 ;
 
 elif:

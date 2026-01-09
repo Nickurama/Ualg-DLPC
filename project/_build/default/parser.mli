@@ -2,6 +2,7 @@
 (* The type of tokens. *)
 
 type token = 
+  | WHILE
   | TYPE of (Ast.ty)
   | TIMES
   | RP
