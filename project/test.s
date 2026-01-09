@@ -3,25 +3,42 @@
 main:
 	pushq %rbp
 	movq %rsp, %rbp
+	call .f_main
+	popq %rbp
+	movq $0, %rax
+	ret
+.f_bool_test:
+	pushq %rbp
+	movq %rsp, %rbp
+	subq $16, %rsp
+.if_bool_test_0_0:
+	movl 16(%rbp), %eax
+	subq $4, %rsp
+	movl %eax, 0(%rsp)
 	movl .csts_i32+0(%rip), %eax
 	subq $4, %rsp
 	movl %eax, 0(%rsp)
 	movl 0(%rsp), %eax
 	addq $4, %rsp
-	cvtsi2sdl %eax, %xmm0
-	subq $8, %rsp
-	movsd %xmm0, 0(%rsp)
-	movsd 0(%rsp), %xmm0
-	addq $8, %rsp
-	movsd %xmm0, .gvar_f64+0(%rip)
-	call .f_main
-	popq %rbp
-	movq $0, %rax
-	ret
-.f_func_uwu:
-	pushq %rbp
-	movq %rsp, %rbp
-	subq $16, %rsp
+	movl 0(%rsp), %edi
+	addq $4, %rsp
+	cmpl %eax, %edi
+	setl %al
+	movzbl %al, %eax
+	subq $4, %rsp
+	movl %eax, 0(%rsp)
+	movl 0(%rsp), %eax
+	addq $4, %rsp
+	test %eax, %eax
+	jz .if_bool_test_0_1
+	movl .csts_i32+0(%rip), %eax
+	subq $4, %rsp
+	movl %eax, 0(%rsp)
+	movl 0(%rsp), %edi
+	addq $4, %rsp
+	call print_int
+	jmp .if_bool_test_0_end
+.if_bool_test_0_1:
 	movl 16(%rbp), %eax
 	subq $4, %rsp
 	movl %eax, 0(%rsp)
@@ -32,62 +49,23 @@ main:
 	addq $4, %rsp
 	movl 0(%rsp), %edi
 	addq $4, %rsp
-	addl %edi, %eax
+	cmpl %eax, %edi
+	setl %al
+	movzbl %al, %eax
 	subq $4, %rsp
 	movl %eax, 0(%rsp)
 	movl 0(%rsp), %eax
 	addq $4, %rsp
-	movl %eax, -4(%rbp)
-	movl -4(%rbp), %eax
+	test %eax, %eax
+	jz .if_bool_test_0_end
+	movl .csts_i32+0(%rip), %eax
 	subq $4, %rsp
 	movl %eax, 0(%rsp)
-	movl 0(%rsp), %eax
+	movl 0(%rsp), %edi
 	addq $4, %rsp
-	addq $16, %rsp
-	popq %rbp
-	ret
-	addq $16, %rsp
-	popq %rbp
-	ret
-.f_func_owo:
-	pushq %rbp
-	movq %rsp, %rbp
-	subq $16, %rsp
-	movsd 16(%rbp), %xmm0
-	subq $8, %rsp
-	movsd %xmm0, 0(%rsp)
-	movl .csts_i32+8(%rip), %eax
-	subq $4, %rsp
-	movl %eax, 0(%rsp)
-	movl 0(%rsp), %eax
-	addq $4, %rsp
-	cvtsi2sdl %eax, %xmm0
-	subq $8, %rsp
-	movsd %xmm0, 0(%rsp)
-	movsd 0(%rsp), %xmm0
-	addq $8, %rsp
-	movsd 0(%rsp), %xmm1
-	addq $8, %rsp
-	divsd %xmm0, %xmm1
-	subq $8, %rsp
-	movsd %xmm1, 0(%rsp)
-	movsd 0(%rsp), %xmm0
-	addq $8, %rsp
-	cvttsd2si %xmm0, %eax
-	subq $4, %rsp
-	movl %eax, 0(%rsp)
-	movl 0(%rsp), %eax
-	addq $4, %rsp
-	addq $16, %rsp
-	popq %rbp
-	ret
-	addq $16, %rsp
-	popq %rbp
-	ret
-.f_owo:
-	pushq %rbp
-	movq %rsp, %rbp
-	subq $16, %rsp
+	call print_int
+	jmp .if_bool_test_0_end
+.if_bool_test_0_end:
 	addq $16, %rsp
 	popq %rbp
 	ret
@@ -95,40 +73,12 @@ main:
 	pushq %rbp
 	movq %rsp, %rbp
 	subq $16, %rsp
-	subq $16, %rsp
-	call .f_owo
+	subq $12, %rsp
+	movl .csts_i32+8(%rip), %eax
+	subq $4, %rsp
+	movl %eax, 0(%rsp)
+	call .f_bool_test
 	addq $16, %rsp
-	movq .csts_i64+8(%rip), %rax
-	subq $8, %rsp
-	movq %rax, 0(%rsp)
-	movq .csts_i64+0(%rip), %rax
-	subq $8, %rsp
-	movq %rax, 0(%rsp)
-	movq 0(%rsp), %rax
-	addq $8, %rsp
-	movq 0(%rsp), %rdi
-	addq $8, %rsp
-	cmpq %rax, %rdi
-	sete %al
-	movzbl %al, %eax
-	subq $4, %rsp
-	movl %eax, 0(%rsp)
-	movl .csts_i32+12(%rip), %eax
-	subq $4, %rsp
-	movl %eax, 0(%rsp)
-	movl 0(%rsp), %eax
-	addq $4, %rsp
-	movl 0(%rsp), %edi
-	addq $4, %rsp
-	cmpl %eax, %edi
-	test %eax, %eax
-	sete %al
-	movzbl %al, %eax
-	subq $4, %rsp
-	movl %eax, 0(%rsp)
-	movl 0(%rsp), %edi
-	addq $4, %rsp
-	call print_int
 	addq $16, %rsp
 	popq %rbp
 	ret
@@ -181,9 +131,9 @@ print_double:
 .csts_i16:
 	.word 
 .csts_i32:
-	.int 3, 1, 2, 0
+	.int 2, 4, 3
 .csts_i64:
-	.quad 1, 2
+	.quad 
 .csts_f32:
 	.float 
 .csts_f64:
@@ -199,4 +149,4 @@ print_double:
 .gvar_f32:
 	.float 
 .gvar_f64:
-	.double 0.000000
+	.double 

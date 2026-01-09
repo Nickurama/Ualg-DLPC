@@ -90,8 +90,8 @@ inst:
 
 elif:
 |                                                       { None }
-| IFELSE LP be = expr RP sc = scope el = elif           { Elif (NoType, be, sc, el) }
-| ELSE LP be = expr RP sc = scope                       { Else (NoType, be, sc) }
+| IFELSE LP e = expr RP sc = scope el = elif            { Elif (NoType, e, sc, el) }
+| ELSE sc = scope                                       { Else (sc) }
 ;
 
 expr:

@@ -614,6 +614,12 @@ let assign_var f_id scope t x =
             movsd !%xmm0 (move_to_based_on_nature lbl real_pos v_nature)
     )
 
+let gen_if_name f_id if_num count =
+    ".if_" ^ f_id ^ "_" ^ (string_of_int if_num) ^ "_" ^ (string_of_int count)
+
+let gen_if_name_end f_id if_num =
+    ".if_" ^ f_id ^ "_" ^ (string_of_int if_num) ^ "_end"
+
 (* Instruction compilation *)
 let rec compile_instr f_id scope = function
     | Set (t1, x, t2, e) ->
@@ -671,16 +677,42 @@ let rec compile_instr f_id scope = function
         popq rbp ++
         ret
     | If (t, e, sc, elif) ->
-        let code = List.map (compile_instr f_id (scope + 1)) sc in
-        let code = List.fold_right (++) code nop in
-        compile_expr f_id scope e ++
-
-        pop_int32 !%eax ++
-        test !%eax !%eax ++
-        jz "" ++ (* next if instruction *)
-        code ++
-        jmp "" ++ (* end of whole if *)
-        nop
+        let if_num = if Hashtbl.mem func_ifs f_id then
+            let num = !(Hashtbl.find func_ifs f_id) + 1 in
+            (Hashtbl.find func_ifs f_id) := num;
+            num
+        else begin
+            Hashtbl.add func_ifs f_id (ref 0); 0
+        end in
+        let rec compile_elif in_t in_e in_sc in_elif curr_num =
+            let () = printf "num: %d\n" curr_num in
+            label (gen_if_name f_id if_num curr_num) ++ (* current if label *)
+            compile_expr f_id scope in_e ++
+            pop_int32 !%eax ++
+            test !%eax !%eax ++
+            (
+                match in_elif with
+                | None -> jz (gen_if_name_end f_id if_num) (* jump to end *)
+                | Elif (_, _, _, _) -> jz (gen_if_name f_id if_num (curr_num + 1)) (* jump to next elif *)
+                | Else (_) -> jz (gen_if_name f_id if_num (curr_num + 1)) (* jump to else ("next elif") *)
+            ) ++
+            let code = List.map (compile_instr f_id (scope + 1)) in_sc in
+            let code = List.fold_right (++) code nop in
+            code ++
+            jmp (gen_if_name_end f_id if_num) ++ (* end of whole if *)
+            (
+                match in_elif with
+                | None -> nop
+                | Elif (in_t, in_e, in_sc, in_elif) -> compile_elif in_t in_e in_sc in_elif (curr_num + 1)
+                | Else (in_sc) ->
+                    let else_code = List.map (compile_instr f_id (scope + 1)) sc in
+                    let else_code = List.fold_right (++) else_code nop in
+                    label (gen_if_name f_id if_num (curr_num + 1)) ++ (* else label ("next elif") *)
+                    else_code
+            )
+        in
+        compile_elif t e sc elif 0 ++
+        label (gen_if_name_end f_id if_num) (* end of if label *)
 
 let arg_bytes = function
     | Arg (t, _) -> type_bytes t
@@ -859,12 +891,9 @@ let rec gen_typing_inst f_id scope = function
                 let sc_typed = List.map (fun x -> gen_typing_inst f_id (scope + 1) x) if_scope in
                 let elif_t = get_typed_elif nested_elif in
                 Elif (t_in, e_typed, sc_typed, elif_t)
-            | Else (_, e, sc) ->
-                let e_typed = gen_typing_expr f_id (scope) e in
-                let t_in = infer_type e_typed in
-                if t_in != TInt then raise (VarTy ("If statement requires an expression of type Int"));
+            | Else (sc) ->
                 let sc_typed = List.map (fun x -> gen_typing_inst f_id (scope + 1) x) if_scope in
-                Else (t_in, e_typed, sc_typed)
+                Else (sc_typed)
         in
         let elif_typed = get_typed_elif elif in
         If (t, expr_typed, scope_typed, elif_typed)

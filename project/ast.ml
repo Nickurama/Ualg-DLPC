@@ -23,7 +23,7 @@ and inst =
 and elif =
     | None
     | Elif of ty * expr * scope * elif
-    | Else of ty * expr * scope
+    | Else of scope
 
 and expr =
     | ICst of int32
