@@ -15,6 +15,7 @@
 %token END_INST
 %token COMMA
 %token EOF
+%token CMP_NOT CMP_EQ CMP_NEQ CMP_LESS CMP_LEQ CMP_GRTR CMP_GEQ
 %token IF IFELSE ELSE
 %token RETURN
 %token LP RP
@@ -28,6 +29,7 @@
 %left PLUS MINUS
 %left TIMES DIV
 %nonassoc uminus
+%nonassoc unot
 
 /* Entry point for grammar */
 %start prog
@@ -87,9 +89,9 @@ inst:
 ;
 
 elif:
-|                                                   { None }
-| IFELSE LP e = expr RP sc = scope el = elif        { Elif (NoType, e, sc, el) }
-| ELSE LP e = expr RP sc = scope                    { Else (NoType, e, sc) }
+|                                                       { None }
+| IFELSE LP be = expr RP sc = scope el = elif           { Elif (NoType, be, sc, el) }
+| ELSE LP be = expr RP sc = scope                       { Else (NoType, be, sc) }
 ;
 
 expr:
@@ -98,17 +100,25 @@ expr:
 | c = FCST                          { FCst c }
 | c = DCST                          { DCst c }
 | id = IDENT                        { Var (NoType, id) }
-| e1 = expr o = op e2 = expr        { Binop (NoType, o, NoType, e1, NoType, e2) }
-| MINUS e = expr %prec uminus       { Binop (NoType, Sub, NoType, ICst 0l, NoType, e) }
+| e1 = expr o = op e2 = expr        { Binop (NoType, NoType, o, NoType, e1, NoType, e2) }
+| MINUS e = expr %prec uminus       { Binop (NoType, NoType, Sub, NoType, ICst 0l, NoType, e) }
+| CMP_NOT e = expr %prec unot       { Binop (NoType, NoType, Not, NoType, e, NoType, ICst 0l) }
 | LP e = expr RP                    { e }
 | id = IDENT LP es = expr_list RP   { FunCall (id, List.rev es) }
 ;
 
 %inline op:
-| PLUS  { Add }
-| MINUS { Sub }
-| TIMES { Mul }
-| DIV   { Div }
+| PLUS      { Add }
+| MINUS     { Sub }
+| TIMES     { Mul }
+| DIV       { Div }
+| CMP_NOT   { Not }
+| CMP_EQ    { Eq }
+| CMP_NEQ   { Neq }
+| CMP_LESS  { Less }
+| CMP_LEQ   { Leq }
+| CMP_GRTR  { Grtr }
+| CMP_GEQ   { Geq }
 ;
 
 

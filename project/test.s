@@ -18,7 +18,7 @@ main:
 	popq %rbp
 	movq $0, %rax
 	ret
-.f_funcuwu:
+.f_func_uwu:
 	pushq %rbp
 	movq %rsp, %rbp
 	subq $16, %rsp
@@ -98,57 +98,37 @@ main:
 	subq $16, %rsp
 	call .f_owo
 	addq $16, %rsp
-	movsd .gvar_f64+0(%rip), %xmm0
+	movq .csts_i64+8(%rip), %rax
 	subq $8, %rsp
-	movsd %xmm0, 0(%rsp)
-	subq $12, %rsp
-	movl .csts_i32+8(%rip), %eax
+	movq %rax, 0(%rsp)
+	movq .csts_i64+0(%rip), %rax
+	subq $8, %rsp
+	movq %rax, 0(%rsp)
+	movq 0(%rsp), %rax
+	addq $8, %rsp
+	movq 0(%rsp), %rdi
+	addq $8, %rsp
+	cmpq %rax, %rdi
+	sete %al
+	movzbl %al, %eax
 	subq $4, %rsp
 	movl %eax, 0(%rsp)
-	call .f_funcuwu
-	addq $16, %rsp
-	subq $4, %rsp
-	movl %eax, 0(%rsp)
-	movl 0(%rsp), %eax
-	addq $4, %rsp
-	cvtsi2sdl %eax, %xmm0
-	subq $8, %rsp
-	movsd %xmm0, 0(%rsp)
-	movsd 0(%rsp), %xmm0
-	addq $8, %rsp
-	movsd 0(%rsp), %xmm1
-	addq $8, %rsp
-	addsd %xmm0, %xmm1
-	subq $8, %rsp
-	movsd %xmm1, 0(%rsp)
-	subq $8, %rsp
 	movl .csts_i32+12(%rip), %eax
 	subq $4, %rsp
 	movl %eax, 0(%rsp)
 	movl 0(%rsp), %eax
 	addq $4, %rsp
-	cvtsi2sdl %eax, %xmm0
-	subq $8, %rsp
-	movsd %xmm0, 0(%rsp)
-	call .f_func_owo
-	addq $16, %rsp
+	movl 0(%rsp), %edi
+	addq $4, %rsp
+	cmpl %eax, %edi
+	test %eax, %eax
+	sete %al
+	movzbl %al, %eax
 	subq $4, %rsp
 	movl %eax, 0(%rsp)
-	movl 0(%rsp), %eax
+	movl 0(%rsp), %edi
 	addq $4, %rsp
-	cvtsi2sdl %eax, %xmm0
-	subq $8, %rsp
-	movsd %xmm0, 0(%rsp)
-	movsd 0(%rsp), %xmm0
-	addq $8, %rsp
-	movsd 0(%rsp), %xmm1
-	addq $8, %rsp
-	addsd %xmm0, %xmm1
-	subq $8, %rsp
-	movsd %xmm1, 0(%rsp)
-	movsd 0(%rsp), %xmm0
-	addq $8, %rsp
-	call print_double
+	call print_int
 	addq $16, %rsp
 	popq %rbp
 	ret
@@ -201,9 +181,9 @@ print_double:
 .csts_i16:
 	.word 
 .csts_i32:
-	.int 3, 1, 2, 6
+	.int 3, 1, 2, 0
 .csts_i64:
-	.quad 
+	.quad 1, 2
 .csts_f32:
 	.float 
 .csts_f64:

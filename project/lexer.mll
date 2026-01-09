@@ -43,6 +43,13 @@ rule token = parse
   | ')'     { RP }
   | ';'     { END_INST }
   | ','     { COMMA }
+  | '!'     { CMP_NOT }
+  | "=="     { CMP_EQ }
+  | "!="     { CMP_NEQ }
+  | '<'     { CMP_LESS }
+  | "<="     { CMP_LEQ }
+  | '>'     { CMP_GRTR }
+  | ">="     { CMP_GEQ }
   | integer as s { ICST (Int32.of_string s) }
   | integer 'l' as s {
       let len = String.length s in

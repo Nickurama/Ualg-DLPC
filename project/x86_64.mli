@@ -320,6 +320,9 @@ val cmpw: [`W] operand -> [`W] operand -> text
 val cmpl: [`L] operand -> [`L] operand -> text
 val cmpq: [`Q] operand -> [`Q] operand -> text
 
+val ucomiss: [`O] operand -> [`O] operand -> text
+val ucomisd: [`O] operand -> [`O] operand -> text
+
 val testb: [`B] operand -> [`B] operand -> text
 val testw: [`W] operand -> [`W] operand -> text
 val testl: [`L] operand -> [`L] operand -> text
@@ -372,6 +375,7 @@ val cvtss2sd: [`O] operand -> [`O] operand -> text
 val cvtsd2ss: [`O] operand -> [`O] operand -> text
     (** float64 -> float32 *)
 
+val test: [> ] operand -> [> ] operand -> text
 
 
 

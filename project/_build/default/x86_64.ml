@@ -297,6 +297,9 @@ let cmpw a b = ins "cmpw %a, %a" a () b ()
 let cmpl a b = ins "cmpl %a, %a" a () b ()
 let cmpq a b = ins "cmpq %a, %a" a () b ()
 
+let ucomiss a b = ins "ucomiss %a, %a" a () b ()
+let ucomisd a b = ins "ucomisd %a, %a" a () b ()
+
 let testb a b = ins "testb %a, %a" a () b ()
 let testw a b = ins "testw %a, %a" a () b ()
 let testl a b = ins "testl %a, %a" a () b ()
@@ -346,6 +349,8 @@ let cvtsi2ssq a b = ins "cvtsi2ssq %a, %a" a () b ()
 let cvtsi2sdq a b = ins "cvtsi2sdq %a, %a" a () b ()
 let cvtss2sd a b = ins "cvtss2sd %a, %a" a () b ()
 let cvtsd2ss a b = ins "cvtsd2ss %a, %a" a () b ()
+
+let test a b = ins "test %a, %a" a () b ()
 
 
 type program = {

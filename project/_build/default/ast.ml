@@ -31,7 +31,7 @@ and expr =
     | FCst of float
     | DCst of float
     | Var of ty * string
-    | Binop of ty * binop * ty * expr * ty * expr
+    | Binop of ty * ty * binop * ty * expr * ty * expr
     | FunCall of string * expr list
 
 and ty =
@@ -47,3 +47,10 @@ and binop =
     | Sub
     | Mul
     | Div
+    | Not
+    | Eq
+    | Neq
+    | Less
+    | Leq
+    | Grtr
+    | Geq

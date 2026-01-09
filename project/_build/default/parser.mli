@@ -25,6 +25,13 @@ type token =
   | DIV
   | DCST of (float)
   | COMMA
+  | CMP_NOT
+  | CMP_NEQ
+  | CMP_LESS
+  | CMP_LEQ
+  | CMP_GRTR
+  | CMP_GEQ
+  | CMP_EQ
 
 (* This exception is raised by the monolithic API functions. *)
 

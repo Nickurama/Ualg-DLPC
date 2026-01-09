@@ -18,5 +18,8 @@ void owo()
 void main()
 {
 	owo();
-	print(x + func_uwu(2) + func_owo(6));
-
+	#print(x);
+	#print(func_uwu(2));
+	#print(func_owo(6));
+	print(!(2l == 1l));
+}

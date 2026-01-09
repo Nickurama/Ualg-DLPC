@@ -27,6 +27,7 @@ end
 (* Exception to raise when a variable (local or global) isn't used as intended *)
 exception VarUndef of string (* variable not defined *)
 exception VarDup of string (* duplicate variable *)
+exception VarTy of string
 exception FuncWrongArgs of string
 exception FuncNoMain of string
 exception FuncNoReturn of string
@@ -90,8 +91,8 @@ let g_vars_f32 = dl_create ()
 let g_vars_f64 = dl_create ()
 
 (* Constant pool *)
-let (constants_int: (i_var, var_info) Hashtbl.t) = Hashtbl.create 17 (* string -> pos, type, bits *)
-let (constants_float: (f_var, var_info) Hashtbl.t) = Hashtbl.create 17 (* string -> pos, type, bits *)
+let (constants_int: (i_var, var_info) Hashtbl.t) = Hashtbl.create 17
+let (constants_float: (f_var, var_info) Hashtbl.t) = Hashtbl.create 17
 
 let constants_i8 = dl_create ()
 let constants_i16 = dl_create ()
@@ -101,12 +102,13 @@ let constants_f32 = dl_create ()
 let constants_f64 = dl_create ()
 
 (* local variables *)
-let (local_vars: (func_var, var_info) Hashtbl.t) = Hashtbl.create 17 (* string -> pos, type, bits *)
-let (func_vars: (string, typed_var dyn_list) Hashtbl.t) = Hashtbl.create 17 (* string -> pos, type, bits *)
-let (func_args: (string, typed_var dyn_list) Hashtbl.t) = Hashtbl.create 17 (* string -> pos, type, bits *)
+let (local_vars: (func_var, var_info) Hashtbl.t) = Hashtbl.create 17
+let (func_vars: (string, typed_var dyn_list) Hashtbl.t) = Hashtbl.create 17
+let (func_args: (string, typed_var dyn_list) Hashtbl.t) = Hashtbl.create 17
 
 (* function data *)
-let (function_data: (string, func_data) Hashtbl.t) = Hashtbl.create 17 (* string -> pos, type, bits *)
+let (function_data: (string, func_data) Hashtbl.t) = Hashtbl.create 17
+let (func_ifs: (string, int ref)  Hashtbl.t) = Hashtbl.create 17
 
 let gen_func_name x =
     ".f_" ^ x
@@ -296,7 +298,7 @@ let infer_type = function
     | FCst i -> TFloat
     | DCst i -> TDouble
     | Var (t, x) -> t
-    | Binop (t_result, o, t1, e1, t2, e2) -> t_result
+    | Binop (t_result, t_true, o, t1, e1, t2, e2) -> t_result
     | FunCall (f_id, args) ->
         if not (Hashtbl.mem function_data f_id) then
             raise (VarUndef ("Undefined function '" ^ f_id ^ "'."));
@@ -386,66 +388,14 @@ let rec compile_expr f_id scope = function
                 movsd(move_to_based_on_nature lbl real_pos v_nature) !%xmm0 ++
                 push_float64 !%xmm0
         )
-    | Binop (t_result, o, t1, e1, t2, e2) -> (
-        compile_expr f_id scope e1 ++
-        convert t1 t_result ++
-
-        compile_expr f_id scope e2 ++
-        convert t2 t_result ++
-
-        match t_result with
-        | NoType -> raise (VarUndef "Variable with no type! (compile binop)") (* not supposed to happen *)
-        | TInt ->
-            pop_int32 !%eax ++
-            pop_int32 !%edi ++
-            (
-                match o with
-                | Add -> addl !%edi !%eax
-                | Sub -> subl !%eax !%edi ++
-                        movl !%edi !%eax
-                | Mul -> imull !%edi !%eax
-                | Div -> cltd ++
-                        idivl !%ecx
-            ) ++
-            push_int32 !%eax
-        | TLong ->
-            pop_int64 !%rax ++
-            pop_int64 !%rdi ++
-            (
-                match o with
-                | Add -> addq !%rdi !%rax
-                | Sub -> subq !%rax !%rdi ++
-                        movq !%rdi !%rax
-                | Mul -> imulq !%rdi !%rax
-                | Div -> movq !%rax !%rsi ++
-                        movq !%rdi !%rax ++
-                        cqto ++
-                        idivq !%rsi
-            ) ++
-            push_int64 !%rax
-        | TFloat ->
-            pop_float32 !%xmm0 ++
-            pop_float32 !%xmm1 ++
-            (
-                match o with
-                | Add -> addss !%xmm0 !%xmm1
-                | Sub -> subss !%xmm0 !%xmm1
-                | Mul -> mulss !%xmm0 !%xmm1
-                | Div -> divss !%xmm0 !%xmm1
-            ) ++
-            push_float32 !%xmm1
-        | TDouble ->
-            pop_float64 !%xmm0 ++
-            pop_float64 !%xmm1 ++
-            (
-                match o with
-                | Add -> addsd !%xmm0 !%xmm1
-                | Sub -> subsd !%xmm0 !%xmm1
-                | Mul -> mulsd !%xmm0 !%xmm1
-                | Div -> divsd !%xmm0 !%xmm1
-            ) ++
-            push_float64 !%xmm1
-    )
+    | Binop (t_result, t_true, o, t1, e1, t2, e2) ->
+        (
+            match o with
+            | Add | Sub | Mul | Div ->
+                compile_binop_arith f_id scope t_result t_true o t1 e1 t2 e2
+            | Not | Eq | Neq | Less | Leq | Grtr | Geq ->
+                compile_binop_bool f_id scope t_result t_true o t1 e1 t2 e2
+        )
     | FunCall (id, args) ->
         compile_fun_call f_id scope id args true
 and compile_fun_call outer_f_id scope id args should_push_result_to_stack =
@@ -484,6 +434,156 @@ and compile_fun_call outer_f_id scope id args should_push_result_to_stack =
             | TDouble -> push_float64 !%xmm0
         )
         else nop
+and compile_binop_arith f_id scope t_result t_true o t1 e1 t2 e2 =
+    compile_expr f_id scope e1 ++
+    convert t1 t_result ++
+
+    compile_expr f_id scope e2 ++
+    convert t2 t_result ++
+
+    match t_result with
+    | NoType -> raise (VarUndef "Variable with no type! (compile binop)") (* not supposed to happen *)
+    | TInt ->
+        pop_int32 !%eax ++
+        pop_int32 !%edi ++
+        (
+            match o with
+            | Add -> addl !%edi !%eax
+            | Sub -> subl !%eax !%edi ++
+                    movl !%edi !%eax
+            | Mul -> imull !%edi !%eax
+            | Div -> cltd ++
+                    idivl !%ecx
+            | _ -> nop
+        ) ++
+        push_int32 !%eax
+    | TLong ->
+        pop_int64 !%rax ++
+        pop_int64 !%rdi ++
+        (
+            match o with
+            | Add -> addq !%rdi !%rax
+            | Sub -> subq !%rax !%rdi ++
+                    movq !%rdi !%rax
+            | Mul -> imulq !%rdi !%rax
+            | Div -> movq !%rax !%rsi ++
+                    movq !%rdi !%rax ++
+                    cqto ++
+                    idivq !%rsi
+            | _ -> nop
+        ) ++
+        push_int64 !%rax
+    | TFloat ->
+        pop_float32 !%xmm0 ++
+        pop_float32 !%xmm1 ++
+        (
+            match o with
+            | Add -> addss !%xmm0 !%xmm1
+            | Sub -> subss !%xmm0 !%xmm1
+            | Mul -> mulss !%xmm0 !%xmm1
+            | Div -> divss !%xmm0 !%xmm1
+            | _ -> nop
+        ) ++
+        push_float32 !%xmm1
+    | TDouble ->
+        pop_float64 !%xmm0 ++
+        pop_float64 !%xmm1 ++
+        (
+            match o with
+            | Add -> addsd !%xmm0 !%xmm1
+            | Sub -> subsd !%xmm0 !%xmm1
+            | Mul -> mulsd !%xmm0 !%xmm1
+            | Div -> divsd !%xmm0 !%xmm1
+            | _ -> nop
+        ) ++
+        push_float64 !%xmm1
+and compile_binop_bool f_id scope t_result t_true o t1 e1 t2 e2 =
+    compile_expr f_id scope e1 ++
+    convert t1 t_true ++
+
+    compile_expr f_id scope e2 ++
+    convert t2 t_true ++
+
+    match t_true with
+    | NoType -> raise (VarUndef "Variable with no type! (compile binop)") (* not supposed to happen *)
+    | TInt ->
+        pop_int32 !%eax ++
+        pop_int32 !%edi ++
+
+        cmpl !%eax !%edi ++
+        (
+            match o with
+            | Not ->
+                test !%eax !%eax ++
+                sete !%al
+            | Eq -> sete !%al
+            | Neq -> setne !%al
+            | Less -> setl !%al
+            | Leq -> setle !%al
+            | Grtr -> setg !%al
+            | Geq -> setge !%al
+            | _ -> nop
+        ) ++
+        movzbl !%al eax ++
+        push_int32 !%eax
+    | TLong ->
+        pop_int64 !%rax ++
+        pop_int64 !%rdi ++
+
+        cmpq !%rax !%rdi ++
+        (
+            match o with
+            | Not ->
+                raise (VarTy ("Cannot use not operator on a variable that isn't of type int"))
+            | Eq -> sete !%al
+            | Neq -> setne !%al
+            | Less -> setl !%al
+            | Leq -> setle !%al
+            | Grtr -> setg !%al
+            | Geq -> setge !%al
+            | _ -> nop
+        ) ++
+        movzbl !%al eax ++
+        push_int32 !%eax
+    | TFloat ->
+        pop_float32 !%xmm0 ++
+        pop_float32 !%xmm1 ++
+
+        ucomiss !%xmm0 !%xmm1 ++
+        (
+            match o with
+            | Not ->
+                raise (VarTy ("Cannot use not operator on a variable that isn't of type int"))
+            | Eq -> sete !%al
+            | Neq -> setne !%al
+            | Less -> setb !%al
+            | Leq -> setbe !%al
+            | Grtr -> seta !%al
+            | Geq -> setae !%al
+            | _ -> nop
+        ) ++
+        movzbl !%al eax ++
+        push_int32 !%eax
+    | TDouble ->
+        pop_float64 !%xmm0 ++
+        pop_float64 !%xmm1 ++
+
+        ucomisd !%xmm0 !%xmm1 ++
+        (
+            match o with
+            | Not ->
+                raise (VarTy ("Cannot use not operator on a variable that isn't of type int"))
+            | Eq -> sete !%al
+            | Neq -> setne !%al
+            | Less -> setb !%al
+            | Leq -> setbe !%al
+            | Grtr -> seta !%al
+            | Geq -> setae !%al
+            | _ -> nop
+        ) ++
+        movzbl !%al eax ++
+        push_int32 !%eax
+
 
 
 (* assumes the value to assign is currently at the top of the stack *)
@@ -515,7 +615,7 @@ let assign_var f_id scope t x =
     )
 
 (* Instruction compilation *)
-let compile_instr f_id scope = function
+let rec compile_instr f_id scope = function
     | Set (t1, x, t2, e) ->
         compile_expr f_id scope e ++
         convert t2 t1 ++
@@ -570,6 +670,17 @@ let compile_instr f_id scope = function
         addq (imm64 bytes_total) !%rsp ++
         popq rbp ++
         ret
+    | If (t, e, sc, elif) ->
+        let code = List.map (compile_instr f_id (scope + 1)) sc in
+        let code = List.fold_right (++) code nop in
+        compile_expr f_id scope e ++
+
+        pop_int32 !%eax ++
+        test !%eax !%eax ++
+        jz "" ++ (* next if instruction *)
+        code ++
+        jmp "" ++ (* end of whole if *)
+        nop
 
 let arg_bytes = function
     | Arg (t, _) -> type_bytes t
@@ -612,19 +723,22 @@ let compile_stmt_g_vars = function
         convert t2 t1 ++
         assign_var "" 0 t1 x
 
-let type_of_binop o t1 t2 =
-        match (t1, t2) with
-        | (NoType, _) | (_, NoType) -> raise (VarUndef "Variable with no type! (type of binop)") (* not supposed to happen *)
-        | (TInt, TInt) -> TInt
-        | (TInt, TLong) | (TLong, TInt) -> TLong
-        | (TInt, TFloat) | (TFloat, TInt) -> TFloat
-        | (TInt, TDouble) | (TDouble, TInt) -> TDouble
-        | (TLong, TLong) -> TLong
-        | (TLong, TFloat) | (TFloat, TLong) -> TFloat
-        | (TLong, TDouble) | (TDouble, TLong) -> TDouble
-        | (TFloat, TFloat) -> TFloat
-        | (TFloat, TDouble) | (TDouble, TFloat) -> TDouble
-        | (TDouble, TDouble) -> TDouble
+let arithmetic_type_of_binop o t1 t2 =
+    match (t1, t2) with
+    | (NoType, _) | (_, NoType) -> raise (VarUndef "Variable with no type! (type of binop)") (* not supposed to happen *)
+    | (TInt, TInt) -> TInt
+    | (TInt, TLong) | (TLong, TInt) -> TLong
+    | (TInt, TFloat) | (TFloat, TInt) -> TFloat
+    | (TInt, TDouble) | (TDouble, TInt) -> TDouble
+    | (TLong, TLong) -> TLong
+    | (TLong, TFloat) | (TFloat, TLong) -> TFloat
+    | (TLong, TDouble) | (TDouble, TLong) -> TDouble
+    | (TFloat, TFloat) -> TFloat
+    | (TFloat, TDouble) | (TDouble, TFloat) -> TDouble
+    | (TDouble, TDouble) -> TDouble
+
+(* let logic_type_of_binop o t1 t2 = arithmetic_type_of_binop o t1 t2 *)
+let logic_type_of_binop o t1 t2 = TInt
 
 let get_var_type f_id scope var_id =
     let highest_scope_local_var = find_highest_scope_matching_var f_id var_id scope in
@@ -636,25 +750,34 @@ let get_var_type f_id scope var_id =
         (Hashtbl.find global_vars var_id).var_type
 
 let rec gen_typing_expr f_id scope = function
-        | ICst i -> ICst (i)
-        | LCst i -> LCst (i)
-        | FCst i -> FCst (i)
-        | DCst i -> DCst (i)
-        | Var (t, x) ->
-            let actual_t = get_var_type f_id scope x in
-            Var (actual_t, x)
-        | Binop (_, o, _, e1, _, e2) ->
+    | ICst i -> ICst (i)
+    | LCst i -> LCst (i)
+    | FCst i -> FCst (i)
+    | DCst i -> DCst (i)
+    | Var (t, x) ->
+        let actual_t = get_var_type f_id scope x in
+        Var (actual_t, x)
+    | Binop (_, _, o, _, e1, _, e2) ->
+        let typed_e1 = gen_typing_expr f_id scope e1 in
+        let typed_e2 = gen_typing_expr f_id scope e2 in
 
-                let typed_e1 = gen_typing_expr f_id scope e1 in
-                let typed_e2 = gen_typing_expr f_id scope e2 in
+        let t1 = infer_type typed_e1 in
+        let t2 = infer_type typed_e2 in
 
-                let t1 = infer_type typed_e1 in
-                let t2 = infer_type typed_e2 in
-
-                let t_result = type_of_binop o t1 t2 in
-                Binop (t_result, o, t1, typed_e1, t2, typed_e2)
-        | FunCall (id, args) ->
-            FunCall (id, check_func_call_type id args scope)
+        let t_result = ref NoType in
+        let t_true = ref NoType in
+        (
+        match o with
+        | Add | Sub | Mul | Div ->
+            t_result := arithmetic_type_of_binop o t1 t2;
+            t_true := !t_result
+        | Not | Eq | Neq | Less | Leq | Grtr | Geq ->
+            t_result := logic_type_of_binop o t1 t2;
+            t_true := arithmetic_type_of_binop o t1 t2
+        );
+        Binop (!t_result, !t_true, o, t1, typed_e1, t2, typed_e2)
+    | FunCall (id, args) ->
+        FunCall (id, check_func_call_type id args scope)
 and check_func_call_type f_id args scope =
     let typed_args = List.map (gen_typing_expr f_id scope) args in
     let arg_types = List.map (infer_type) typed_args in
@@ -674,7 +797,14 @@ and check_func_call_type f_id args scope =
         raise (FuncWrongArgs ("Function call does not match function declaration for '" ^ f_id ^ "'."));
     typed_args
 
-let ref gen_typing_inst f_id scope = function
+let gen_typing_cmp_bexpr f_id scope cmp_ty e1 e2 =
+    let typed_e1 = gen_typing_expr f_id scope e1 in
+    let t1 = infer_type typed_e1 in
+    let typed_e2 = gen_typing_expr f_id scope e2 in
+    let t2 = infer_type typed_e2 in
+    cmp_ty (t1, typed_e1, t2, typed_e2)
+
+let rec gen_typing_inst f_id scope = function
     | Set (t1, x, _, e) ->
         let typed_e = gen_typing_expr f_id scope e in
         let t2 = infer_type typed_e in
@@ -718,18 +848,21 @@ let ref gen_typing_inst f_id scope = function
     | If (_, e, if_scope, elif) ->
         let expr_typed = gen_typing_expr f_id scope e in
         let t = infer_type expr_typed in
+        if t != TInt then raise (VarTy ("If statement requires an expression of type Int"));
         let scope_typed = List.map (fun x -> gen_typing_inst f_id (scope + 1) x) if_scope in
         let rec get_typed_elif = function
             | None -> None
             | Elif (_, e, sc, nested_elif) ->
                 let e_typed = gen_typing_expr f_id (scope) e in
                 let t_in = infer_type e_typed in
+                if t_in != TInt then raise (VarTy ("If statement requires an expression of type Int"));
                 let sc_typed = List.map (fun x -> gen_typing_inst f_id (scope + 1) x) if_scope in
                 let elif_t = get_typed_elif nested_elif in
                 Elif (t_in, e_typed, sc_typed, elif_t)
             | Else (_, e, sc) ->
                 let e_typed = gen_typing_expr f_id (scope) e in
                 let t_in = infer_type e_typed in
+                if t_in != TInt then raise (VarTy ("If statement requires an expression of type Int"));
                 let sc_typed = List.map (fun x -> gen_typing_inst f_id (scope + 1) x) if_scope in
                 Else (t_in, e_typed, sc_typed)
         in
