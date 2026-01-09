@@ -1,6 +1,6 @@
 double x = 3;
 
-int funcuwu(int a)
+int func_uwu(int a)
 {
 	int x = a + 1;
 	return x;
@@ -18,5 +18,5 @@ void owo()
 void main()
 {
 	owo();
-	print(x + funcuwu(2) + func_owo(6));
+	print(x + func_uwu(2) + func_owo(6));
 }

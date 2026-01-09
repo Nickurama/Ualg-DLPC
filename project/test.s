@@ -18,7 +18,7 @@ main:
 	popq %rbp
 	movq $0, %rax
 	ret
-.f_funcuwu:
+.f_func_uwu:
 	pushq %rbp
 	movq %rsp, %rbp
 	subq $16, %rsp
@@ -105,7 +105,7 @@ main:
 	movl .csts_i32+8(%rip), %eax
 	subq $4, %rsp
 	movl %eax, 0(%rsp)
-	call .f_funcuwu
+	call .f_func_uwu
 	addq $16, %rsp
 	subq $4, %rsp
 	movl %eax, 0(%rsp)

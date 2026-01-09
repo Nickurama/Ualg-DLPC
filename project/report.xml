@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<indexing>
+ <object alt="" name="Image1" object_type="graphic"/>
+ <paragraph index="15" node_type="writer">University of Algarve</paragraph>
+ <paragraph index="16" node_type="writer">Faculty of Sciences and technology</paragraph>
+ <paragraph index="19" node_type="writer">Masters in Informatics Engineering</paragraph>
+ <paragraph index="20" node_type="writer">DLPC</paragraph>
+ <paragraph index="22" node_type="writer">Nome: Diogo Fonseca</paragraph>
+ <paragraph index="23" node_type="writer">Número: 79858</paragraph>
+ <paragraph index="25" node_type="writer">Project “mini-c”</paragraph>
+ <paragraph index="28" node_type="writer">The mini-c programming language was made to resemble the C programming language, however, the biggest difference is it’s aggressive implicit promotion/conversion of values.</paragraph>
+ <paragraph index="31" node_type="writer">Algebraic expressions</paragraph>
+ <paragraph index="33" node_type="writer">The programming language can perform the common mathematical operations, such as division, multiplication, addition and subtraction (“/”, “*”, “+” and “-” respectufully).</paragraph>
+ <paragraph index="34" node_type="writer">Variable declaration</paragraph>
+ <paragraph index="36" node_type="writer">Furthermore, the language employs strong explicit typing, with global (outside of functions) and local (inside functions) variables. Meaning that a type must be explicitly stated at variable initialization. The semantics are close to equal to C’s, expliciting the type, the name, and then equaling it to an expression followed by a semicolon.</paragraph>
+ <paragraph index="38" node_type="writer">Printing</paragraph>
+ <paragraph index="40" node_type="writer">The language benefits of a special printing function “print()” which will print it’s argument expression correctly regardless of type.</paragraph>
+ <paragraph index="42" node_type="writer">Functions</paragraph>
+ <paragraph index="44" node_type="writer">Functions have any number of arguments (as they are stack-based), which will act as local variables for the function, when calling a function in an expression (or in an instruction by itself) the compiler will guarantee that the arguments given and the arguments at the function declaration match up. This does not include type checking against the declaration due to the aggressive promotion system employed (on purpose), which was one of the focuses of the compiler. Variables within a scope have priority over variables with a lower scope. Furthermore the program has to have a main function in order to compile without errors. Return statements are also mandatory, except for void functions. A special care was employed in order to maintain stack alignment throughout the whole process.</paragraph>
+ <paragraph index="52" node_type="writer">Type system</paragraph>
+ <paragraph index="54" node_type="writer">The types that exist are:</paragraph>
+ <paragraph index="55" node_type="writer">int – a signed integer of 32 bits.</paragraph>
+ <paragraph index="56" node_type="writer">long – a signed integer of 64 bits.</paragraph>
+ <paragraph index="57" node_type="writer">float – a single precision floating point of 32 bits</paragraph>
+ <paragraph index="58" node_type="writer">double – a double precision floating point of 64 bits</paragraph>
+ <paragraph index="59" node_type="writer">The type system, before compiling, checks all types and annotates the tree with the types of expressions (which can be functions, arithmetic operations, or even variables, …)</paragraph>
+ <paragraph index="60" node_type="writer">Because of this type annotation, on compile-time, an aggressive promotion/demotion system is employed to the variables.</paragraph>
+ <paragraph index="62" node_type="writer">Promotion system</paragraph>
+ <paragraph index="64" node_type="writer">The promotion system employs the following hierarchy:</paragraph>
+ <paragraph index="66" node_type="writer">int32 → int64 → float32 → float64</paragraph>
+ <paragraph index="68" node_type="writer">in an expression, when two of these types must forego an joint operation between the two, the lower on the hierarchy will convert to the higher on the hierarchy. As an examlple, if we were to multiply an int32 by a float32, the int32 would be converted to a float32 right before multiplication. The same applies when passing arguments to a function.</paragraph>
+ <paragraph index="70" node_type="writer">Demotion system</paragraph>
+ <paragraph index="72" node_type="writer">The demotion system is employed only when either declaring a variable or assigning a new value to a variable. The expression, no matter the type, will lawfully obey the type of the variable, and always convert to the variable’s type after it has it’s final value. It always truncates whenever need be, trying to preserve sign. Every conversion was carefully crafted and tested. The promotion and demotion systems are a defining (and perhaps dangerous) part of this language.</paragraph>
+ <paragraph index="74" node_type="writer">Compiling errors</paragraph>
+ <paragraph index="76" node_type="writer">The compiler will exit compilation and throw a descriptive error whenever the code isn’t up to the rules of the language, many errors were searched for, such as not having a main function, not having a return on a non-void function, wrong parameters, etc…</paragraph>
+ <paragraph index="78" node_type="writer">Running</paragraph>
+ <paragraph index="80" node_type="writer">To run the program, ocaml packages (pam) must be installed, as well as ocamellex and menhir. Other than that, when running “make”, the “test.minic” program will be compiled into “test.s” and then executed.</paragraph>
+ <paragraph index="82" node_type="writer">Conclusions</paragraph>
+ <paragraph index="84" node_type="writer">There was also some minor optimizations to the assembly, but nothing too great, if the assembly is to be inspected there are a lot of potential optimizations to be had.</paragraph>
+ <paragraph index="85" node_type="writer">The language also lacks if statements, which makes the language not turing complete. Furthermore, it doesn’t have loops either, which would have been a major helping hand after the language had if statements.</paragraph>
+ <paragraph index="86" node_type="writer">Both if statements and loops were sadly not implemented due to a lack of time.</paragraph>
+</indexing>
