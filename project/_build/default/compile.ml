@@ -685,7 +685,8 @@ let rec compile_instr f_id scope = function
             Hashtbl.add func_ifs f_id (ref 0); 0
         end in
         let rec compile_elif in_t in_e in_sc in_elif curr_num =
-            let () = printf "num: %d\n" curr_num in
+            let code = List.map (compile_instr f_id (scope + 1)) in_sc in
+            let code = List.fold_right (++) code nop in
             label (gen_if_name f_id if_num curr_num) ++ (* current if label *)
             compile_expr f_id scope in_e ++
             pop_int32 !%eax ++
@@ -696,16 +697,14 @@ let rec compile_instr f_id scope = function
                 | Elif (_, _, _, _) -> jz (gen_if_name f_id if_num (curr_num + 1)) (* jump to next elif *)
                 | Else (_) -> jz (gen_if_name f_id if_num (curr_num + 1)) (* jump to else ("next elif") *)
             ) ++
-            let code = List.map (compile_instr f_id (scope + 1)) in_sc in
-            let code = List.fold_right (++) code nop in
             code ++
             jmp (gen_if_name_end f_id if_num) ++ (* end of whole if *)
             (
                 match in_elif with
                 | None -> nop
-                | Elif (in_t, in_e, in_sc, in_elif) -> compile_elif in_t in_e in_sc in_elif (curr_num + 1)
-                | Else (in_sc) ->
-                    let else_code = List.map (compile_instr f_id (scope + 1)) sc in
+                | Elif (in_t_2, in_e_2, in_sc_2, in_elif_2) -> compile_elif in_t_2 in_e_2 in_sc_2 in_elif_2 (curr_num + 1)
+                | Else (in_sc_2) ->
+                    let else_code = List.map (compile_instr f_id (scope + 1)) in_sc_2 in
                     let else_code = List.fold_right (++) else_code nop in
                     label (gen_if_name f_id if_num (curr_num + 1)) ++ (* else label ("next elif") *)
                     else_code
@@ -884,15 +883,15 @@ let rec gen_typing_inst f_id scope = function
         let scope_typed = List.map (fun x -> gen_typing_inst f_id (scope + 1) x) if_scope in
         let rec get_typed_elif = function
             | None -> None
-            | Elif (_, e, sc, nested_elif) ->
-                let e_typed = gen_typing_expr f_id (scope) e in
+            | Elif (_, in_e, sc, nested_elif) ->
+                let e_typed = gen_typing_expr f_id (scope) in_e in
                 let t_in = infer_type e_typed in
                 if t_in != TInt then raise (VarTy ("If statement requires an expression of type Int"));
-                let sc_typed = List.map (fun x -> gen_typing_inst f_id (scope + 1) x) if_scope in
+                let sc_typed = List.map (fun x -> gen_typing_inst f_id (scope + 1) x) sc in
                 let elif_t = get_typed_elif nested_elif in
                 Elif (t_in, e_typed, sc_typed, elif_t)
             | Else (sc) ->
-                let sc_typed = List.map (fun x -> gen_typing_inst f_id (scope + 1) x) if_scope in
+                let sc_typed = List.map (fun x -> gen_typing_inst f_id (scope + 1) x) sc in
                 Else (sc_typed)
         in
         let elif_typed = get_typed_elif elif in
